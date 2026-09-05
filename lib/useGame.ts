@@ -23,6 +23,10 @@ const vacio = (): Mark[] => new Array(N * N).fill(EMPTY) as Mark[];
 
 export interface Game {
   caso: Caso | null;
+  cascada: { origen: number; celdas: number[] } | null;
+  hintUnit: number[];
+  /** true en cuanto se hace la primera marca: sirve para plegar la ambientación. */
+  jugo: boolean;
   marks: Mark[];
   level: Level;
   solved: boolean;
@@ -63,8 +67,18 @@ export function useGame(): Game {
   const [elapsed, setElapsed] = useState(0);
   const [hint, setHint] = useState("");
   const [flash, setFlash] = useState<number[]>([]);
+  /** Origen y casillas de la última tanda de tachados automáticos: el tablero
+   *  las usa para que aparezcan en cascada desde la ficha recién puesta. */
+  const [cascada, setCascada] = useState<{ origen: number; celdas: number[] } | null>(null);
+  /** Fila/columna/habitación de la que habla la pista, para resaltarla. */
+  const [hintUnit, setHintUnit] = useState<number[]>([]);
+  const [jugo, setJugo] = useState(false);
   const [stat, setStat] = useState<Stat>({ played: 0, won: 0, best: null });
 
+  /* `solved` y `revealed` también quedan viejos dentro de un closure: sin esto,
+     los clics que llegan en el mismo tick que la jugada ganadora siguen
+     operando sobre una partida ya terminada. */
+  const terminadoRef = useRef(false);
   const historial = useRef<Cambio[][]>([]);
   const [puedeDeshacer, setPuedeDeshacer] = useState(false);
   const inicio = useRef<number | null>(null);
@@ -121,6 +135,7 @@ export function useGame(): Game {
     save("nh-stats", st);
 
     historial.current = [];
+    terminadoRef.current = false;
     inicio.current = null;
     setPuedeDeshacer(false);
     setCaso(r.caso);
@@ -131,6 +146,9 @@ export function useGame(): Game {
     setElapsed(0);
     setHint("");
     setFlash([]);
+    setCascada(null);
+    setHintUnit([]);
+    setJugo(false);
     setStat(s);
   }, [escribirMarks]);
 
@@ -143,7 +161,11 @@ export function useGame(): Game {
       escribirMarks(next);
 
       // La victoria es consecuencia de esta jugada, no un estado a vigilar
-      if (caso && !solved && !revealed && esVictoria(next, caso)) {
+      if (caso && !terminadoRef.current && esVictoria(next, caso)) {
+        terminadoRef.current = true;
+        setHint("");
+        setHintUnit([]);
+        setCascada(null);
         const segundos =
           inicio.current === null ? 0 : Math.floor((Date.now() - inicio.current) / 1000);
         setElapsed(segundos);
@@ -157,12 +179,12 @@ export function useGame(): Game {
         setStat(s);
       }
     },
-    [escribirMarks, caso, solved, revealed],
+    [escribirMarks, caso],
   );
 
   const ciclar = useCallback(
     (i: number, atras = false) => {
-      if (!caso || !index || solved || revealed) return;
+      if (!caso || !index || terminadoRef.current) return;
       arrancarReloj();
       const orden: Mark[] = [EMPTY, CROSS, PERSON];
       const actuales = marksRef.current;
@@ -172,25 +194,32 @@ export function useGame(): Game {
       const next = actuales.slice();
       const cambios: Cambio[] = [{ i, prev: actuales[i] }];
       next[i] = siguiente;
+      const automaticas: number[] = [];
       if (siguiente === PERSON) {
         for (const x of prohibidasPor(i, index, caso.region)) {
           if (next[x] === EMPTY) {
             cambios.push({ i: x, prev: next[x] });
             next[x] = CROSS;
+            automaticas.push(x);
           }
         }
       }
       setHint("");
+      setHintUnit([]);
+      setCascada(automaticas.length ? { origen: i, celdas: automaticas } : null);
+      setJugo(true);
       aplicar(cambios, next);
     },
-    [caso, index, solved, revealed, aplicar, arrancarReloj],
+    [caso, index, aplicar, arrancarReloj],
   );
 
   /** Pintado por arrastre: nunca pisa a una persona ya ubicada. */
   const pintar = useCallback(
     (celdas: number[], modo: "tachar" | "borrar") => {
-      if (solved || revealed) return;
+      if (terminadoRef.current) return;
       arrancarReloj();
+      setCascada(null);
+      setJugo(true);
       const destino: Mark = modo === "borrar" ? EMPTY : CROSS;
       const next = marksRef.current.slice();
       const cambios: Cambio[] = [];
@@ -202,23 +231,25 @@ export function useGame(): Game {
       setHint("");
       aplicar(cambios, next);
     },
-    [solved, revealed, aplicar, arrancarReloj],
+    [aplicar, arrancarReloj],
   );
 
   const deshacer = useCallback(() => {
-    if (solved || revealed) return;
+    if (terminadoRef.current) return;
     const lote = historial.current.pop();
     if (!lote) return;
     const next = marksRef.current.slice();
     for (let k = lote.length - 1; k >= 0; k--) next[lote[k].i] = lote[k].prev;
     setPuedeDeshacer(historial.current.length > 0);
     setHint("");
+    setHintUnit([]);
+    setCascada(null);
     escribirMarks(next);
-  }, [solved, revealed, escribirMarks]);
+  }, [escribirMarks]);
 
   /* ---------- pistas ---------- */
   const pedirPista = useCallback(() => {
-    if (!caso || solved || revealed) return;
+    if (!caso || terminadoRef.current) return;
     arrancarReloj();
 
     const actuales = marksRef.current;
@@ -228,6 +259,7 @@ export function useGame(): Game {
     const mal = puestas.filter((i) => !sol.has(i));
     if (mal.length) {
       setHint("Hay una persona mal ubicada. Sacala y volvé a pedir la pista.");
+      setHintUnit([]);
       destellar(mal);
       return;
     }
@@ -246,19 +278,24 @@ export function useGame(): Game {
     }
     if (!paso) {
       setHint("No encuentro nada nuevo que deducir con lo que hay marcado. Probá completar las casillas descartadas.");
+      setHintUnit([]);
       return;
     }
 
     const next = actuales.slice();
     const cambios: Cambio[] = [];
+    const automaticas: number[] = [];
+    let origen = -1;
     if (paso.kind === "single" && index) {
       const i = paso.cells[0];
+      origen = i;
       cambios.push({ i, prev: next[i] });
       next[i] = PERSON;
       for (const x of prohibidasPor(i, index, caso.region)) {
         if (next[x] === EMPTY) {
           cambios.push({ i: x, prev: next[x] });
           next[x] = CROSS;
+          automaticas.push(x);
         }
       }
     } else {
@@ -270,21 +307,30 @@ export function useGame(): Game {
       }
     }
     setHint(paso.text);
+    setHintUnit(paso.unitCells);
+    setCascada(origen >= 0 && automaticas.length ? { origen, celdas: automaticas } : null);
+    setJugo(true);
     destellar(paso.cells);
     aplicar(cambios, next);
-  }, [caso, index, solved, revealed, aplicar, arrancarReloj, destellar]);
+  }, [caso, index, aplicar, arrancarReloj, destellar]);
 
   const rendirse = useCallback(() => {
-    if (!caso || solved) return;
+    if (!caso || terminadoRef.current) return;
+    terminadoRef.current = true;
     const next = vacio();
     for (const i of caso.stars) next[i] = PERSON;
     escribirMarks(next);
     setRevealed(true);
     setHint("");
-  }, [caso, solved, escribirMarks]);
+    setHintUnit([]);
+    setCascada(null);
+  }, [caso, escribirMarks]);
 
   return {
     caso,
+    cascada,
+    hintUnit,
+    jugo,
     marks,
     level,
     solved,

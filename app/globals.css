@@ -26,7 +26,13 @@
   --dl1:-5%; --dl2:4%;  --dl3:-4%; --dl4:5%;  --dl5:-6%;
   --dl6:3%;  --dl7:6%;  --dl8:-5%; --dl9:5%;
 
-  --step:.25rem;
+  /* Escala de espaciado: 8 pasos, en vez de los 23 valores sueltos que había.
+     Cada medida del sitio sale de acá. */
+  --sp-1:4px;  --sp-2:8px;  --sp-3:12px; --sp-4:16px;
+  --sp-5:24px; --sp-6:32px; --sp-7:48px; --sp-8:64px;
+
+  /* Señal de "mirá acá" de las pistas. Separada del acento, que significa error. */
+  --spot:#1F5C7A;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -42,6 +48,7 @@
     --accent-soft:#B4544E;
     --good:#68B98D;
     --shadow:rgba(0,0,0,.45);
+    --spot:#8FCBE8;
     --room-s:42%; --room-l:29%;
     --strong-s:60%; --strong-l:66%;
   }
@@ -59,6 +66,7 @@
   --accent-soft:#B4544E;
   --good:#68B98D;
   --shadow:rgba(0,0,0,.45);
+  --spot:#8FCBE8;
   --room-s:42%; --room-l:29%;
   --strong-s:60%; --strong-l:66%;
 }
@@ -71,12 +79,12 @@ body{
   font-size:15px; line-height:1.55;
   -webkit-font-smoothing:antialiased;
 }
-.wrap{max-width:1120px;margin:0 auto;padding:28px 20px 56px;}
+.wrap{max-width:1400px;margin:0 auto;padding:var(--sp-5) var(--sp-5) var(--sp-8);}
 
 /* ---------- header ---------- */
 .masthead{
   display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;
-  gap:16px 24px;padding-bottom:14px;border-bottom:1px solid var(--rule);
+  gap:var(--sp-4) var(--sp-5);padding-bottom:var(--sp-3);border-bottom:1px solid var(--rule);
 }
 .brand{display:flex;flex-direction:column;gap:2px;min-width:0}
 h1{
@@ -93,14 +101,14 @@ h1{
 .seg{display:flex;background:var(--surface-2);border:1px solid var(--rule);border-radius:2px;padding:2px;gap:2px}
 .seg button{
   font:500 12px/1 "Libre Franklin",sans-serif;letter-spacing:.03em;
-  padding:8px 12px;border:0;border-radius:1px;background:transparent;color:var(--ink-soft);cursor:pointer;
+  padding:var(--sp-2) var(--sp-3);border:0;border-radius:1px;background:transparent;color:var(--ink-soft);cursor:pointer;
 }
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
 .seg button:hover:not([aria-pressed="true"]){color:var(--ink)}
 
 button.action{
   font:600 12.5px/1 "Libre Franklin",sans-serif;letter-spacing:.04em;
-  padding:10px 14px;border:1px solid var(--ink);background:var(--ink);color:var(--surface);
+  padding:var(--sp-3) var(--sp-4);border:1px solid var(--ink);background:var(--ink);color:var(--surface);
   border-radius:2px;cursor:pointer;
 }
 button.action.ghost{background:transparent;color:var(--ink)}
@@ -109,13 +117,35 @@ button.action:disabled{opacity:.4;cursor:not-allowed}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* ---------- layout ---------- */
-.stage{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:32px;margin-top:26px;align-items:start}
-@media (max-width:900px){.stage{grid-template-columns:minmax(0,1fr);gap:26px}}
+.stage{
+  display:grid;grid-template-columns:minmax(0,1fr) 340px;
+  gap:var(--sp-6);margin-top:var(--sp-5);align-items:start;
+}
+/* El tablero es el objeto principal: que use el ancho disponible en vez de
+   quedar limitado por un contenedor pensado para texto. */
+/* El tablero es cuadrado: si sólo se limitara por ancho, en pantallas bajas
+   quedarían filas debajo del pliegue. Manda el menor de los dos. */
+.tablero-col{
+  max-width:min(clamp(320px,64vw,880px), calc(100dvh - 200px));
+  justify-self:center;width:100%;
+}
+@media (max-width:900px){
+  .stage{grid-template-columns:minmax(0,1fr);gap:var(--sp-5)}
+  .tablero-col{max-width:none}
+}
 
 /* ---------- board ---------- */
-.boardwrap{display:grid;grid-template-columns:20px minmax(0,1fr);grid-template-rows:20px minmax(0,1fr);gap:6px}
+.boardwrap{display:grid;grid-template-columns:22px minmax(0,1fr);grid-template-rows:22px minmax(0,1fr);gap:var(--sp-2)}
 .corner{grid-column:1;grid-row:1}
-.colhead,.rowhead{display:grid;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);letter-spacing:.05em}
+.colhead,.rowhead{
+  display:grid;font-family:"IBM Plex Mono",monospace;font-size:12.5px;font-weight:500;
+  color:var(--ink-soft);letter-spacing:.05em;
+}
+.colhead span,.rowhead span{
+  display:flex;align-items:center;justify-content:center;border-radius:2px;
+  transition:background .2s ease,color .2s ease;
+}
+.colhead .aqui,.rowhead .aqui{background:var(--spot);color:var(--surface);font-weight:600}
 .colhead{grid-column:2;grid-row:1;grid-template-columns:repeat(9,1fr);align-items:center;justify-items:center}
 .rowhead{grid-column:1;grid-row:2;grid-template-rows:repeat(9,1fr);align-items:center;justify-items:center}
 
@@ -133,63 +163,127 @@ button.action:disabled{opacity:.4;cursor:not-allowed}
   transition:filter .12s ease;
 }
 @media (prefers-reduced-motion:reduce){.cell{transition:none}}
-.cell:hover{filter:brightness(1.06) saturate(1.15)}
+.cell[data-mark="0"]{cursor:cell}
+.cell:hover{filter:brightness(1.14) saturate(1.2)}
 .cell:focus-visible{outline:2px solid var(--accent);outline-offset:-3px;z-index:4}
 
+@keyframes pin-in{
+  0%{transform:scale(.2);opacity:0}
+  60%{transform:scale(1.12)}
+  100%{transform:scale(1);opacity:1}
+}
 .pin{
   width:58%;height:58%;border-radius:50%;
   background:hsl(var(--h) var(--strong-s) var(--strong-l));
   box-shadow:inset 0 0 0 2px hsl(var(--h) var(--strong-s) calc(var(--strong-l) + 14%)), 0 1px 2px var(--shadow);
+  animation:pin-in .22s cubic-bezier(.34,1.56,.64,1) backwards;
 }
 .cell.err .pin{background:var(--accent);box-shadow:inset 0 0 0 2px var(--accent-soft)}
-.cross{width:34%;height:34%;opacity:.42;color:var(--ink-soft)}
+
+/* Los tachados automáticos entran escalonados desde la ficha que los provocó:
+   se ve POR QUÉ quedaron prohibidos, en vez de aparecer todos en un frame. */
+@keyframes cross-in{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:.42}}
+.cross{
+  width:34%;height:34%;opacity:.42;color:var(--ink-soft);
+  animation:cross-in .18s ease-out backwards;
+  animation-delay:var(--delay,0ms);
+}
 .cross line{stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
 
+/* Callejón sin salida: marca la zona sin tapar las ✕, que siguen haciendo falta
+   para entender el error. */
 .cell.dead::before{
   content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
-  background:repeating-linear-gradient(45deg,transparent 0 4px,var(--accent) 4px 5px);
-  opacity:.5;
+  background:repeating-linear-gradient(45deg,transparent 0 6px,var(--accent) 6px 6.8px);
+  opacity:.3;
 }
 .cell.dead .pin,.cell.dead .cross,.cell.dead svg{position:relative;z-index:1}
+
+/* La fila, columna o habitación de la que habla la pista */
+.cell.unit::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:var(--spot);opacity:.16;
+}
+
+/* Destello de pista: un anillo, no un lavado rojo. El rojo ya significa error. */
 .cell.flash::after{
-  content:"";position:absolute;inset:0;background:var(--accent);opacity:0;
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:2;
+  box-shadow:inset 0 0 0 3px var(--spot);opacity:0;
   animation:flash 1.1s ease-out;
 }
-@keyframes flash{0%{opacity:.42}100%{opacity:0}}
-@media (prefers-reduced-motion:reduce){.cell.dead::before{
-  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
-  background:repeating-linear-gradient(45deg,transparent 0 4px,var(--accent) 4px 5px);
-  opacity:.5;
+@keyframes flash{0%,55%{opacity:1}100%{opacity:0}}
+
+/* Al resolver, las nueve fichas se encienden en secuencia */
+@keyframes celebra{0%{transform:scale(1)}40%{transform:scale(1.24)}100%{transform:scale(1)}}
+.board.celebra .pin{animation:celebra .5s ease-out backwards;animation-delay:calc(var(--orden,0) * 110ms)}
+
+@media (prefers-reduced-motion:reduce){
+  .pin,.cross,.board.celebra .pin{animation:none}
+  .cell.flash::after{animation:none;opacity:1}
+  .colhead span,.rowhead span{transition:none}
 }
-.cell.dead .pin,.cell.dead .cross,.cell.dead svg{position:relative;z-index:1}
-.cell.flash::after{animation:none;opacity:.2}}
 
 .walls{position:absolute;inset:0;pointer-events:none;z-index:3}
 .grid-line{stroke:var(--rule-soft);stroke-width:.018}
 .wall{stroke:var(--ink);stroke-width:.07;stroke-linecap:square}
 
 /* ---------- dossier ---------- */
-.panel{display:flex;flex-direction:column;gap:22px}
-.block{background:var(--surface);border:1px solid var(--rule);border-radius:2px;padding:16px 16px 18px}
-.block.case{border-left:3px solid var(--accent)}
+.panel{display:flex;flex-direction:column;gap:var(--sp-6)}
+.block{
+  background:var(--surface);border:1px solid var(--rule);border-radius:2px;
+  padding:var(--sp-4);
+}
+/* No todo pesa lo mismo: lo operativo y los sospechosos son las herramientas;
+   la ambientación y la referencia son consulta. */
+.block.operativo{
+  padding:var(--sp-4) var(--sp-4) var(--sp-3);
+  border-color:var(--ink-faint);
+  box-shadow:0 1px 3px var(--shadow);
+}
+.block.destacado{padding:var(--sp-4) var(--sp-4) var(--sp-1)}
+.block.caso,.block.ref{
+  background:transparent;border-color:var(--rule-soft);padding:var(--sp-3) var(--sp-4);
+}
+.block.record{background:transparent;border-style:dashed;padding:var(--sp-3) var(--sp-4)}
+
+/* Los plegables */
+.block.caso summary,.block.ref summary{
+  list-style:none;cursor:pointer;display:flex;align-items:center;gap:var(--sp-2);
+}
+.block.caso summary::-webkit-details-marker,
+.block.ref summary::-webkit-details-marker{display:none}
+.block.caso summary::after,.block.ref summary::after{
+  content:"";width:6px;height:6px;margin-left:auto;
+  border-right:1.5px solid var(--ink-faint);border-bottom:1.5px solid var(--ink-faint);
+  transform:rotate(45deg);transition:transform .2s ease;
+}
+.block.caso[open] summary::after,.block.ref[open] summary::after{transform:rotate(-135deg)}
+.block.caso summary h2,.block.ref summary h2{margin:0}
+.block.caso p,.block.ref .rules,.block.ref .legend{margin-top:var(--sp-3)}
 h2{
   font:500 10.5px/1 "IBM Plex Mono",monospace;letter-spacing:.16em;text-transform:uppercase;
-  color:var(--ink-faint);margin:0 0 10px;
+  color:var(--ink-faint);margin:0 0 var(--sp-3);
 }
-.case p{margin:0;font-size:14.5px;color:var(--ink-soft)}
-.case b{color:var(--ink);font-weight:600}
+h2.fuerte{
+  font:600 12px/1 "Libre Franklin",sans-serif;letter-spacing:.1em;
+  color:var(--ink-soft);
+}
+.block.caso p{margin:var(--sp-3) 0 0;font-size:14.5px;color:var(--ink-soft);line-height:1.6}
+.block.caso b{color:var(--ink);font-weight:600}
 .coord{font-family:"IBM Plex Mono",monospace;font-size:13.5px;color:var(--accent);font-weight:500}
 
-.rules{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px}
-.rules li{display:grid;grid-template-columns:16px 1fr;gap:9px;font-size:13.5px;color:var(--ink-soft);line-height:1.45}
+.rules{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:var(--sp-2)}
+.rules li{display:grid;grid-template-columns:16px 1fr;gap:var(--sp-3);font-size:13.5px;color:var(--ink-soft);line-height:1.45}
 .rules span{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);padding-top:2px}
 
 .suspects{margin:0;padding:0;list-style:none;display:flex;flex-direction:column}
 .suspects li{
   display:grid;grid-template-columns:16px 1fr auto;cursor:default;
-  transition:opacity .3s ease;gap:10px;align-items:center;
-  padding:7px 0;border-bottom:1px solid var(--rule-soft);
+  transition:opacity .3s ease;gap:var(--sp-3);align-items:center;
+  padding:5px var(--sp-1);border-bottom:1px solid var(--rule-soft);
+  border-radius:2px;
 }
+.suspects li:focus-visible{outline:2px solid var(--spot);outline-offset:-2px}
 .suspects li:last-child{border-bottom:0}
 .swatch{
   width:16px;height:16px;border-radius:3px;
@@ -197,7 +291,11 @@ h2{
   box-shadow:inset 0 0 0 1.5px hsl(var(--h) var(--strong-s) var(--strong-l));
 }
 .who{min-width:0}
-.who b{display:inline-block;position:relative;font-weight:600;font-size:13.5px;line-height:1.25}
+.who b{
+  display:inline-block;position:relative;
+  font-family:"Bodoni Moda",Didot,"Times New Roman",serif;
+  font-weight:600;font-size:15.5px;line-height:1.15;letter-spacing:.01em;
+}
 /* la línea se dibuja de izquierda a derecha al ubicar a esa persona */
 .who b::after{
   content:"";position:absolute;left:-2px;right:-2px;top:.56em;height:2.5px;border-radius:1px;
@@ -209,7 +307,7 @@ h2{
 .suspects li.done{opacity:.62}
 .suspects li.done .at{color:hsl(var(--h) var(--strong-s) var(--strong-l))}
 @media (prefers-reduced-motion:reduce){ .who b::after{transition:none} }
-.who i{display:block;font-style:normal;font-size:11.5px;color:var(--ink-faint)}
+.who i{display:block;font-style:normal;font-size:11.5px;line-height:1.35;color:var(--ink-faint)}
 .at{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
 .suspects li:hover{background:var(--surface-2)}
 .suspects li.guilty{background:color-mix(in srgb,var(--accent) 12%,transparent);opacity:1}
@@ -217,28 +315,58 @@ h2{
 .cell.lit{filter:brightness(1.35) saturate(1.5)}
 .suspects li.guilty .at{color:var(--accent);font-weight:500}
 
-.status{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
-.status .big{font-size:22px;color:var(--ink);letter-spacing:-.02em}
-.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.status{
+  display:flex;align-items:baseline;gap:var(--sp-3);
+  font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;
+}
+.status .big{font-size:26px;color:var(--ink);letter-spacing:-.02em;line-height:1}
+.status .chip{
+  font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-soft);border:1px solid var(--rule);border-radius:2px;
+  padding:2px var(--sp-2);
+}
+/* El reloj informa, no manda: queda claramente en segundo plano */
+.status .reloj{margin-left:auto;font-size:12.5px;color:var(--ink-faint)}
+
+/* Un punto por habitación: el avance se lee de un vistazo */
+.avance{
+  display:grid;grid-template-columns:repeat(9,1fr);gap:var(--sp-1);
+  list-style:none;margin:var(--sp-3) 0 0;padding:0;
+}
+.avance li{
+  height:5px;border-radius:2px;background:var(--rule);
+  transition:background .3s ease,transform .3s ease;
+}
+.avance li.ok{
+  background:hsl(var(--h) var(--strong-s) var(--strong-l));
+  transform:scaleY(1.6);
+}
+
+.tools{display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-top:var(--sp-4)}
 .tools .action{flex:1 1 auto}
+.tools .action:disabled{opacity:.4;cursor:not-allowed}
+
+/* 9. Los mensajes animan su altura en vez de aparecer de golpe y empujar */
+.msg{display:grid;grid-template-rows:0fr;transition:grid-template-rows .26s ease}
+.msg[data-abierto]{grid-template-rows:1fr}
+.msg-in{overflow:hidden}
+@media (prefers-reduced-motion:reduce){.msg{transition:none}}
 
 .hintbox{
-  margin-top:12px;padding:11px 12px;border-left:2px solid var(--accent);
+  margin:var(--sp-3) 0 0;padding:var(--sp-3);border-left:2px solid var(--spot);
   background:var(--surface-2);font-size:13.5px;line-height:1.45;color:var(--ink);
 }
-.hintbox:empty{display:none}
 .alert{
-  margin-top:12px;padding:11px 12px;border-left:2px solid var(--accent);
+  margin:var(--sp-3) 0 0;padding:var(--sp-3);border-left:2px solid var(--accent);
   background:color-mix(in srgb,var(--accent) 12%, var(--surface));
   font-size:13.5px;line-height:1.45;color:var(--ink);
 }
-.alert:empty{display:none}
 
 .verdict{
-  border:1px solid var(--accent);border-radius:2px;padding:18px;background:var(--surface);
+  border:1px solid var(--accent);border-radius:2px;padding:var(--sp-4);background:var(--surface);
 }
 .verdict h3{
-  font-family:"Bodoni Moda",serif;font-weight:700;font-size:24px;margin:6px 0 4px;line-height:1.1;
+  font-family:"Bodoni Moda",serif;font-weight:700;font-size:24px;margin:var(--sp-2) 0 var(--sp-1);line-height:1.1;
 }
 .verdict .kicker{font:500 10.5px/1 "IBM Plex Mono",monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
 .verdict p{margin:8px 0 0;font-size:14px;color:var(--ink-soft)}
@@ -247,56 +375,81 @@ h2{
 .legend{font-size:12.5px;color:var(--ink-faint);line-height:1.5}
 .legend b{color:var(--ink-soft);font-weight:600}
 .legend kbd{font-family:"IBM Plex Mono",monospace;font-size:11px;background:var(--surface-2);border:1px solid var(--rule);border-radius:2px;padding:1px 5px;color:var(--ink-soft)}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-variant-numeric:tabular-nums}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-3);font-variant-numeric:tabular-nums}
 .stats div{display:flex;flex-direction:column;gap:1px}
 .stats b{font-family:"IBM Plex Mono",monospace;font-size:17px;font-weight:500}
 .stats i{font-style:normal;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint)}
 /* ---------- modales ---------- */
+@keyframes velo-in{from{opacity:0}to{opacity:1}}
+@keyframes hoja-in{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
 .modal{
   position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
-  padding:20px;background:color-mix(in srgb,var(--ground) 84%, transparent);
+  padding:var(--sp-5);background:color-mix(in srgb,var(--ground) 84%, transparent);
+  animation:velo-in .18s ease-out;
 }
 .modal[hidden]{display:none}   /* explícito: no dependemos del reset del anfitrión */
 @supports (backdrop-filter:blur(2px)){ .modal{backdrop-filter:blur(3px)} }
 .sheet{
   background:var(--surface);border:1px solid var(--rule);border-radius:3px;
   box-shadow:0 20px 60px var(--shadow);width:100%;max-width:470px;
-  padding:26px 26px 22px;max-height:88vh;overflow-y:auto;
+  padding:var(--sp-6) var(--sp-6) var(--sp-5);max-height:88vh;overflow-y:auto;
+  animation:hoja-in .24s cubic-bezier(.2,.8,.3,1);
+}
+@media (prefers-reduced-motion:reduce){
+  .modal,.sheet{animation:none}
 }
 .sheet .kicker{font:500 10.5px/1 "IBM Plex Mono",monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint)}
 .sheet h2{font-family:"Bodoni Moda",Didot,serif;font-weight:700;font-size:30px;line-height:1.05;
   margin:8px 0 0;color:var(--ink);letter-spacing:-.01em;text-transform:none;letter-spacing:0}
-.sheet .lede{margin:10px 0 0;font-size:14.5px;line-height:1.6;color:var(--ink-soft)}
-.story{margin:14px 0 0;font-size:15px;line-height:1.65;color:var(--ink)}
+.sheet .lede{margin:var(--sp-3) 0 0;font-size:14.5px;line-height:1.6;color:var(--ink-soft)}
+.story{margin:var(--sp-4) 0 0;font-size:15px;line-height:1.65;color:var(--ink)}
 .story b{font-weight:600}
 .story .coord{font-size:14px}
-.picker{display:flex;flex-direction:column;gap:8px;margin-top:18px}
+.picker{display:flex;flex-direction:column;gap:var(--sp-2);margin-top:var(--sp-4)}
 .picker button{
-  display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;text-align:left;
-  padding:13px 15px;border:1px solid var(--rule);background:var(--surface-2);border-radius:2px;cursor:pointer;color:var(--ink);
+  display:grid;grid-template-columns:1fr auto;align-items:center;gap:var(--sp-3);text-align:left;
+  padding:var(--sp-3) var(--sp-4);border:1px solid var(--rule);background:var(--surface-2);border-radius:2px;cursor:pointer;color:var(--ink);
 }
 .picker button:hover{border-color:var(--ink);background:var(--surface)}
 .picker b{font:600 15px/1.2 "Libre Franklin",sans-serif;display:block}
 .picker i{font-style:normal;font-size:12.5px;color:var(--ink-faint);display:block;margin-top:2px}
 .picker .txt{min-width:0}
 .picker .count{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);white-space:nowrap;align-self:start;padding-top:3px}
-.sheet-actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
+.sheet-actions{display:flex;gap:var(--sp-2);margin-top:var(--sp-5);flex-wrap:wrap}
 .sheet-actions .action{flex:1 1 auto}
-.again{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap;
+.again{display:flex;align-items:center;gap:var(--sp-2);margin-top:var(--sp-3);flex-wrap:wrap;
   font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint)}
 .again button{
   font:500 12px/1 "Libre Franklin",sans-serif;letter-spacing:.02em;text-transform:none;
-  padding:6px 10px;border:1px solid var(--rule);background:transparent;color:var(--ink-soft);border-radius:2px;cursor:pointer;
+  padding:var(--sp-2) var(--sp-3);border:1px solid var(--rule);background:transparent;color:var(--ink-soft);border-radius:2px;cursor:pointer;
 }
 .again button:hover{border-color:var(--ink);color:var(--ink)}
-footer{margin-top:34px;padding-top:14px;border-top:1px solid var(--rule);font-size:12px;color:var(--ink-faint)}
+footer{margin-top:var(--sp-7);padding-top:var(--sp-4);border-top:1px solid var(--rule);font-size:12px;color:var(--ink-faint)}
+
+/* ---------- móvil ---------- */
+/* Los controles quedaban debajo del tablero: pedir una pista obligaba a
+   scrollear, leerla, volver a subir y bajar de nuevo. Ahora están siempre. */
+@media (max-width:900px){
+  .wrap{padding-bottom:calc(var(--sp-8) * 2.6)}
+  .block.operativo{
+    position:fixed;left:0;right:0;bottom:0;z-index:30;
+    border-radius:0;border-left:0;border-right:0;border-bottom:0;
+    background:var(--surface);
+    box-shadow:0 -6px 24px var(--shadow);
+    padding:var(--sp-3) var(--sp-4) calc(var(--sp-3) + env(safe-area-inset-bottom,0px));
+    max-height:52vh;overflow-y:auto;
+  }
+  .block.operativo .avance{margin-top:var(--sp-2)}
+  .block.operativo .tools{margin-top:var(--sp-2)}
+  .panel{gap:var(--sp-5)}
+}
 
 /* ---------- accesibilidad ---------- */
 
 /* Salto al contenido para quien navega con teclado */
 .skip{
   position:absolute;left:-9999px;top:0;z-index:100;
-  padding:10px 14px;background:var(--ink);color:var(--surface);
+  padding:var(--sp-3) var(--sp-4);background:var(--ink);color:var(--surface);
   font:600 13px/1 "Libre Franklin",sans-serif;border-radius:0 0 2px 0;
 }
 .skip:focus{left:0}

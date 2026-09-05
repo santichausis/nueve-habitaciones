@@ -12,6 +12,12 @@ interface Props {
   deadCells: Set<number>;
   flash: number[];
   lit: number[];
+  /** Fila/columna/habitación de la que habla la pista. */
+  hintUnit: number[];
+  /** Origen y casillas de la última tanda de tachados automáticos. */
+  cascada: { origen: number; celdas: number[] } | null;
+  /** Al resolver, las fichas se encienden en secuencia. */
+  celebrar: boolean;
   bloqueado: boolean;
   onCiclar: (i: number, atras?: boolean) => void;
   onPintar: (celdas: number[], modo: "tachar" | "borrar") => void;
@@ -83,6 +89,9 @@ export default function Board({
   deadCells,
   flash,
   lit,
+  hintUnit,
+  cascada,
+  celebrar,
   bloqueado,
   onCiclar,
   onPintar,
@@ -197,23 +206,39 @@ export default function Board({
 
   const litSet = new Set(lit);
   const flashSet = new Set(flash);
+  const unitSet = new Set(hintUnit);
+  const cascadaSet = new Set(cascada?.celdas ?? []);
+
+  /* Los tachados automáticos aparecen en orden de distancia a la ficha que los
+     provocó: se ve POR QUÉ quedaron prohibidos, en vez de aparecer todos de golpe. */
+  const retraso = (i: number): string | undefined => {
+    if (!cascada || !cascadaSet.has(i)) return undefined;
+    const [r0, c0] = rc(cascada.origen);
+    const [r1, c1] = rc(i);
+    const pasos = Math.max(Math.abs(r0 - r1), Math.abs(c0 - c1));
+    return `${Math.min(pasos, 9) * 26}ms`;
+  };
 
   return (
     <div className="boardwrap">
       <div className="corner" />
       <div className="colhead" aria-hidden="true">
-        {[...COLS].map((c) => (
-          <span key={c}>{c}</span>
+        {[...COLS].map((c, ci) => (
+          <span key={c} className={hintUnit.some((i) => i % N === ci) ? "aqui" : undefined}>
+            {c}
+          </span>
         ))}
       </div>
       <div className="rowhead" aria-hidden="true">
         {Array.from({ length: N }, (_, r) => (
-          <span key={r}>{r + 1}</span>
+          <span key={r} className={hintUnit.some((i) => Math.floor(i / N) === r) ? "aqui" : undefined}>
+            {r + 1}
+          </span>
         ))}
       </div>
 
       <div
-        className="board"
+        className={celebrar ? "board celebra" : "board"}
         id="tablero"
         ref={boardRef}
         role="grid"
@@ -246,6 +271,7 @@ export default function Board({
                 bad.has(i) ? "err" : "",
                 deadCells.has(i) ? "dead" : "",
                 litSet.has(i) ? "lit" : "",
+                unitSet.has(i) ? "unit" : "",
                 flashSet.has(i) ? "flash" : "",
               ]
                 .filter(Boolean)
@@ -260,15 +286,22 @@ export default function Board({
                   data-i={i}
                   tabIndex={i === foco ? 0 : -1}
                   onFocus={() => setFoco(i)}
+                  data-mark={marks[i]}
                   style={
                     {
                       "--h": `var(--h${g + 1})`,
                       "--dl": `var(--dl${g + 1})`,
+                      "--delay": retraso(i),
+                      "--orden": marks[i] === PERSON ? `${idx(r, c) % N}` : undefined,
                     } as React.CSSProperties
                   }
                   aria-label={`${coord(i)}, ${ROOMS[g].name}, ${estado}`}
                 >
-                  {marks[i] === PERSON ? <span className="pin" /> : marks[i] === CROSS ? <Cruz /> : null}
+                  {marks[i] === PERSON ? (
+                    <span className="pin" />
+                  ) : marks[i] === CROSS ? (
+                    <Cruz />
+                  ) : null}
                 </button>
               );
             })}

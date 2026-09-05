@@ -21,7 +21,11 @@ export interface Unit {
 
 export interface Deduction {
   kind: "single" | "squeeze" | "sets";
+  /** Casillas afectadas por la deducción. */
   cells: number[];
+  /** Casillas de la fila/columna/habitación de la que habla el texto: sirve
+   *  para resaltarla en el tablero mientras se lee la pista. */
+  unitCells: number[];
   text: string;
   k?: number;
 }
@@ -160,6 +164,7 @@ export class Engine {
         return {
           kind: "single",
           cells: [o.cs[0]],
+          unitCells: this.fam[o.f][o.u].slice(),
           text: `En ${famLabel(o.f, o.u)} ya sólo queda una casilla posible: ${coord(o.cs[0])}. Ahí va una persona.`,
         };
       }
@@ -184,6 +189,7 @@ export class Engine {
         return {
           kind: "squeeze",
           cells: hit,
+          unitCells: this.fam[o.f][o.u].slice(),
           text:
             `Esté donde esté la persona ${deOf(famLabel(o.f, o.u))}, va a tocar ${listEs(hit.map(coord))}. ` +
             `Como nadie puede estar pegado a otra persona, ${hit.length > 1 ? "esas casillas quedan descartadas" : "esa casilla queda descartada"}.`,
@@ -225,6 +231,7 @@ export class Engine {
               kind: "sets",
               k,
               cells: hit,
+              unitCells: S.flatMap((u) => this.fam[A][u]),
               text:
                 k === 1
                   ? `Todas las casillas posibles ${deOf(as)} caen dentro ${deOf(bl)}. Como ahí va una sola persona, el resto ${deOf(bl)} queda descartado.`

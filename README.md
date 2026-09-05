@@ -116,6 +116,20 @@ sí mismo.
 `tools/puzzles.txt` es la fuente: una línea por caso, con el nivel y 92 caracteres
 (81 dígitos de habitación, 9 columnas —una por fila— y la casilla del cuerpo).
 
+## Diseño
+
+- **Escala de espaciado de 8 pasos** (`--sp-1`…`--sp-8`): todas las medidas salen de ahí.
+- **El panel se ordena por frecuencia de uso**, no por narrativa: controles, sospechosos,
+  ambientación (plegable), referencia (plegable), récord. En 1440×900 el tablero y los
+  nueve sospechosos entran completos sobre el pliegue.
+- **El movimiento explica en vez de decorar**: los tachados automáticos entran en cascada
+  desde la ficha que los provocó, así se ve *por qué* quedaron prohibidos.
+- **El rojo significa error y nada más.** Las pistas señalan con un color propio
+  (`--spot`) para no confundir "mirá acá" con "esto está mal".
+- En móvil los controles son una barra fija: pedir una pista no obliga a perder de vista
+  el tablero.
+- Toda animación respeta `prefers-reduced-motion`.
+
 ## Accesibilidad
 
 - Todo el texto cumple contraste **WCAG AA** (4.5:1) en ambos temas, incluido el
