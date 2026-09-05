@@ -95,6 +95,28 @@ puede resolverlo sin adivinar; en la práctica salen unos tres casos por segundo
 `tools/puzzles.txt` es la fuente: una línea por caso, con el nivel y 92 caracteres
 (81 dígitos de habitación, 9 columnas —una por fila— y la casilla del cuerpo).
 
+## Accesibilidad
+
+- Todo el texto cumple contraste **WCAG AA** (4.5:1) en ambos temas, incluido el
+  texto chico de 11px.
+- El tablero es una grilla ARIA real (`grid` › `row` › `gridcell`) y cada casilla
+  anuncia su coordenada, su habitación y su estado.
+- Los avisos de error y las pistas son regiones `aria-live`, así que se anuncian
+  al aparecer en vez de pasar desapercibidos.
+- El teclado alcanza para jugar entero: flechas, `espacio` y `x`. Los modales
+  atrapan el foco y lo devuelven al cerrarse.
+- Se respeta `prefers-reduced-motion` en todas las animaciones.
+
+## Seguridad
+
+El juego no hace pedidos de red salvo la tipografía, y `index.html` declara una
+CSP con `default-src 'none'` y sin `connect-src`: aunque se lograra inyectar algo,
+no tendría por dónde sacar datos.
+
+La única entrada que no controla el juego es `localStorage` (dificultad, bolsa de
+casos y estadísticas). Puede estar corrupta o editada a mano, así que se valida y
+se normaliza antes de usarla en lugar de confiar en su forma.
+
 ## Licencia
 
 MIT. Ver [LICENSE](LICENSE).

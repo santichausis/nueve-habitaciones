@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="description" content="Puzzle de deducción lógica: ubicá a nueve sospechosos, uno por fila, columna y habitación, sin que se toquen, y descubrí al asesino.">
 <meta name="color-scheme" content="light dark">
+<!-- El juego es enteramente local: no hace pedidos de red salvo la tipografía.
+     Sin connect-src, una inyección no tendría por dónde sacar datos. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23191D19'/%3E%3Ccircle cx='11' cy='11' r='4' fill='%23C8A03C'/%3E%3Ccircle cx='22' cy='21' r='4' fill='%238E2B2B'/%3E%3C/svg%3E">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
 <style>*{box-sizing:border-box}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Nueve Habitaciones</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,7 +21,7 @@
   --surface-2:#EFF1EA;
   --ink:#191D19;
   --ink-soft:#5C635A;
-  --ink-faint:#8A9187;
+  --ink-faint:#6B736A;   /* 4.55:1 sobre --surface (WCAG AA) */
   --rule:#C7CBC0;
   --rule-soft:#D8DBD1;
   --accent:#8E2B2B;
@@ -44,7 +48,7 @@
     --surface-2:#212621;
     --ink:#E9EBE4;
     --ink-soft:#9BA398;
-    --ink-faint:#6E766B;
+    --ink-faint:#868E84; /* 4.99:1 sobre --surface (WCAG AA) */
     --rule:#333A33;
     --rule-soft:#2A302A;
     --accent:#D7625A;
@@ -61,7 +65,7 @@
   --surface-2:#212621;
   --ink:#E9EBE4;
   --ink-soft:#9BA398;
-  --ink-faint:#6E766B;
+  --ink-faint:#868E84;   /* 4.99:1 sobre --surface (WCAG AA) */
   --rule:#333A33;
   --rule-soft:#2A302A;
   --accent:#D7625A;
@@ -128,6 +132,7 @@ button.action:disabled{opacity:.4;cursor:not-allowed}
 .colhead{grid-column:2;grid-row:1;grid-template-columns:repeat(9,1fr);align-items:center;justify-items:center}
 .rowhead{grid-column:1;grid-row:2;grid-template-rows:repeat(9,1fr);align-items:center;justify-items:center}
 
+.board > .brow{display:contents}   /* fila real para lectores de pantalla, sin romper la grilla */
 .board{
   grid-column:2;grid-row:2;position:relative;aspect-ratio:1;
   user-select:none;-webkit-user-select:none;touch-action:manipulation;
@@ -264,6 +269,7 @@ h2{
   position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
   padding:20px;background:color-mix(in srgb,var(--ground) 84%, transparent);
 }
+.modal[hidden]{display:none}   /* explícito: no dependemos del reset del anfitrión */
 @supports (backdrop-filter:blur(2px)){ .modal{backdrop-filter:blur(3px)} }
 .sheet{
   background:var(--surface);border:1px solid var(--rule);border-radius:3px;
@@ -341,8 +347,8 @@ footer{margin-top:34px;padding-top:14px;border-top:1px solid var(--rule);font-si
           <button class="action ghost" id="undo">Deshacer</button>
           <button class="action ghost" id="giveup">Rendirse</button>
         </div>
-        <div class="alert" id="alert"></div>
-        <div class="hintbox" id="hintbox"></div>
+        <div class="alert" id="alert" role="status" aria-live="polite"></div>
+        <div class="hintbox" id="hintbox" role="status" aria-live="polite"></div>
       </div>
 
       <div class="block">
@@ -437,27 +443,50 @@ const LIB={
 /* Cada caso viene ya verificado: solución única, resoluble sin adivinar,
    y con una sola persona pegada al cuerpo. 81 dígitos de habitación,
    9 columnas (una por fila) y la casilla del cuerpo. */
+const BODY_AT  = N*N + N;        // dónde arranca la casilla del cuerpo
+const CASE_LEN = BODY_AT + 2;    // 81 habitaciones + 9 columnas + 2 dígitos
 function decodeCase(str, level){
+  if(typeof str!=="string" || str.length!==CASE_LEN) return null;
   const region=new Int8Array(N*N);
-  for(let i=0;i<N*N;i++) region[i]=str.charCodeAt(i)-48;
+  for(let i=0;i<N*N;i++){
+    const g=str.charCodeAt(i)-48;
+    if(g<0 || g>=N) return null;
+    region[i]=g;
+  }
   const stars=[];
-  for(let r=0;r<N;r++) stars.push(idx(r, str.charCodeAt(N*N+r)-48));
-  const body=parseInt(str.slice(90,92),10);
+  for(let r=0;r<N;r++){
+    const c=str.charCodeAt(N*N+r)-48;
+    if(c<0 || c>=N) return null;
+    stars.push(idx(r,c));
+  }
+  const body=parseInt(str.slice(BODY_AT, CASE_LEN),10);
+  if(!(body>=0 && body<N*N)) return null;
   const starSet=new Set(stars);
   const killer=NB8[body].find(x=>starSet.has(x));
+  if(killer===undefined) return null;   // sin asesino no hay caso
   return {region, stars, body, killer, guilty:region[killer], level};
 }
-// bolsa barajada: no repite un caso hasta agotar los de esa dificultad
+/* Bolsa barajada: no repite un caso hasta agotar los de esa dificultad.
+   Vive en localStorage, así que su contenido no es confiable: puede estar
+   corrupto o editado a mano. Se filtra a índices válidos antes de usarla. */
 function pickCase(level){
-  const key="nh-bag-"+level, list=LIB[level];
-  let bag=load(key,[]);
-  if(!Array.isArray(bag) || !bag.length){
-    bag=list.map((_,i)=>i);
-    for(let i=bag.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; const t=bag[i];bag[i]=bag[j];bag[j]=t; }
+  const list = LIB[level] || LIB.normal;
+  const key = "nh-bag-"+level;
+  const guardado = load(key, []);
+  let bag = Array.isArray(guardado)
+    ? guardado.filter(i => Number.isInteger(i) && i>=0 && i<list.length)
+    : [];
+  for(let intento=0; intento<3; intento++){
+    if(!bag.length){
+      bag = list.map((_,i)=>i);
+      for(let i=bag.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; const t=bag[i];bag[i]=bag[j];bag[j]=t; }
+    }
+    const i = bag.pop();
+    save(key, bag);
+    const caso = decodeCase(list[i], level);
+    if(caso) return caso;
   }
-  const i=bag.pop();
-  save(key,bag);
-  return decodeCase(list[i % list.length], level);
+  return null;
 }
 
 /* ---------- 4. motor de deducción (el mismo que da las pistas) ---------- */
@@ -601,9 +630,22 @@ const LEVELS={
 };
 /* ---------- estado ---------- */
 const EMPTY=0, CROSS=1, PERSON=2;
-let P=null, marks=null, history=[], solved=false, revealed=false;
+let P=null, marks=null, historial=[], solved=false, revealed=false;   // 'history' pisaba window.history
 let t0=0, tick=null, elapsed=0;
-let diff = load("nh-diff","normal");
+const NIVELES = Object.keys(LEVELS);
+function loadDiff(){ const d=load("nh-diff","normal"); return NIVELES.indexOf(d)>=0 ? d : "normal"; }
+let diff = loadDiff();
+// las estadísticas guardadas pueden venir con cualquier forma: se normalizan
+function loadStats(){
+  const st=load("nh-stats",{});
+  return (st && typeof st==="object" && !Array.isArray(st)) ? st : {};
+}
+function statFor(st, nivel){
+  const s=st[nivel];
+  if(!s || typeof s!=="object") return {played:0, won:0, best:null};
+  const best = (typeof s.best==="number" && isFinite(s.best) && s.best>=0) ? s.best : null;
+  return {played:Number(s.played)||0, won:Number(s.won)||0, best};
+}
 
 function load(k,d){ try{ const v=localStorage.getItem(k); return v===null?d:JSON.parse(v);}catch(e){return d;} }
 function save(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
@@ -617,11 +659,18 @@ function buildStatic(){
   $("#colhead").innerHTML = [...COLS].map(c=>"<span>"+c+"</span>").join("");
   $("#rowhead").innerHTML = Array.from({length:N},(_,r)=>"<span>"+(r+1)+"</span>").join("");
   const frag=document.createDocumentFragment();
-  for(let i=0;i<N*N;i++){
-    const b=document.createElement("button");
-    b.className="cell"; b.dataset.i=i; b.type="button";
-    b.tabIndex = i===0 ? 0 : -1;
-    frag.appendChild(b); cells.push(b);
+  for(let r=0;r<N;r++){
+    const fila=document.createElement("div");
+    fila.className="brow"; fila.setAttribute("role","row");
+    for(let c=0;c<N;c++){
+      const i=idx(r,c);
+      const b=document.createElement("button");
+      b.className="cell"; b.dataset.i=i; b.type="button";
+      b.setAttribute("role","gridcell");
+      b.tabIndex = i===0 ? 0 : -1;
+      fila.appendChild(b); cells.push(b);
+    }
+    frag.appendChild(fila);
   }
   board.appendChild(frag);
   const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
@@ -645,17 +694,27 @@ function drawWalls(region){
 
 const CROSS_SVG='<svg class="cross" viewBox="0 0 24 24" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>';
 
-function unitsOf(){
-  const out=[];
+/* Las unidades y las casillas de cada habitación sólo cambian al empezar un
+   caso. Antes se recalculaban en cada render — y render() corre en cada
+   movimiento del arrastre. */
+let UNITS=[], ROOM_CELLS=[], cacheDe=null;
+function buildCase(){
+  ROOM_CELLS=Array.from({length:N},()=>[]);
+  for(let i=0;i<N*N;i++) ROOM_CELLS[P.region[i]].push(i);
+  UNITS=[];
   for(let u=0;u<N;u++){
-    out.push({f:0,u,cells:Array.from({length:N},(_,c)=>idx(u,c))});
-    out.push({f:1,u,cells:Array.from({length:N},(_,r)=>idx(r,u))});
+    UNITS.push({f:0,u,cells:Array.from({length:N},(_,c)=>idx(u,c))});
+    UNITS.push({f:1,u,cells:Array.from({length:N},(_,r)=>idx(r,u))});
   }
-  for(let g=0;g<N;g++){
-    const cells=[]; for(let i=0;i<N*N;i++) if(P.region[i]===g) cells.push(i);
-    out.push({f:2,u:g,cells});
+  for(let g=0;g<N;g++) UNITS.push({f:2,u:g,cells:ROOM_CELLS[g]});
+  cacheDe=P;
+  // el color de cada casilla tampoco cambia durante la partida
+  for(let i=0;i<N*N;i++){
+    const g=P.region[i];
+    cells[i].style.setProperty("--h","var(--h"+(g+1)+")");
+    cells[i].style.setProperty("--dl","var(--dl"+(g+1)+")");
   }
-  return out;
+  pintado=new Array(N*N).fill("");
 }
 /* Dos clases de problema: reglas rotas (dos personas juntas, repetidas en una
    fila/columna/habitación) y callejones sin salida (una fila, columna o
@@ -666,7 +725,7 @@ function analyze(){
   for(const i of stars){
     for(const x of NB8[i]) if(marks[x]===PERSON){ bad.add(i); bad.add(x); }
   }
-  for(const un of unitsOf()){
+  for(const un of UNITS){
     const here=un.cells.filter(i=>marks[i]===PERSON);
     if(here.length>1){ here.forEach(i=>bad.add(i)); continue; }
     if(here.length===1) continue;
@@ -676,22 +735,21 @@ function analyze(){
   return {bad, dead};
 }
 function render(){
+  if(cacheDe!==P) buildCase();   // la caché nunca puede quedar de otro caso
   const {bad, dead}=analyze();
   const deadCells=new Set();
   dead.forEach(un=>un.cells.forEach(i=>deadCells.add(i)));
   for(let i=0;i<N*N;i++){
-    const el=cells[i], g=P.region[i];
-    el.style.setProperty("--h","var(--h"+(g+1)+")");
-    el.style.setProperty("--dl","var(--dl"+(g+1)+")");
-    let html="";
-    if(marks[i]===PERSON) html='<span class="pin"></span>';
-    else if(marks[i]===CROSS) html=CROSS_SVG;
-    el.innerHTML=html;
+    const estado = marks[i]+(bad.has(i)?"e":"")+(deadCells.has(i)?"d":"");
+    if(pintado[i]===estado) continue;      // nada que hacer en esta casilla
+    pintado[i]=estado;
+    const el=cells[i];
+    el.innerHTML = marks[i]===PERSON ? '<span class="pin"></span>'
+                 : marks[i]===CROSS  ? CROSS_SVG : "";
     el.classList.toggle("err", bad.has(i));
     el.classList.toggle("dead", deadCells.has(i));
-    const label = coord(i)+", "+ROOMS[g].name+", "+
-      (marks[i]===PERSON?"persona": marks[i]===CROSS?"descartada":"vacía");
-    el.setAttribute("aria-label",label);
+    el.setAttribute("aria-label", coord(i)+", "+ROOMS[P.region[i]].name+", "+
+      (marks[i]===PERSON?"persona": marks[i]===CROSS?"descartada":"vacía"));
   }
   const n=marks.reduce((a,m)=>a+(m===PERSON?1:0),0);
   $("#placed").textContent=n+"/9";
@@ -710,7 +768,7 @@ function render(){
   updateSuspects();
 }
 
-let suspectEls=[];
+let suspectEls=[], pintado=[];
 function buildSuspects(){
   $("#suspects").innerHTML = ROOMS.map((room,g)=>
     '<li style="--h:var(--h'+(g+1)+');--dl:var(--dl'+(g+1)+')">'+
@@ -719,7 +777,7 @@ function buildSuspects(){
       '<span class="at">—</span></li>').join("");
   suspectEls=Array.prototype.slice.call($("#suspects").querySelectorAll("li"));
   suspectEls.forEach((li,g)=>{
-    const lit=on=>{ for(let i=0;i<N*N;i++) if(P.region[i]===g) cells[i].classList.toggle("lit",on); };
+    const lit=on=>{ for(const i of ROOM_CELLS[g]) cells[i].classList.toggle("lit",on); };
     li.addEventListener("mouseenter",()=>lit(true));
     li.addEventListener("mouseleave",()=>lit(false));
   });
@@ -732,7 +790,7 @@ function updateSuspects(){
   for(let g=0;g<N;g++){
     const li=suspectEls[g]; if(!li) continue;
     let cel=-1;
-    for(let i=0;i<N*N;i++) if(P.region[i]===g && marks[i]===PERSON){ cel=i; break; }
+    for(const i of ROOM_CELLS[g]) if(marks[i]===PERSON){ cel=i; break; }
     li.classList.toggle("done", cel>=0);
     li.classList.toggle("guilty", show && g===P.guilty);
     li.querySelector(".at").textContent = cel>=0 ? coord(cel) : "—";
@@ -762,13 +820,13 @@ function cycle(i,back){
   const batch=[];
   setMark(i,next,batch);
   if(next===PERSON) autoCross(i,batch);
-  if(batch.length) history.push(batch);
+  if(batch.length) historial.push(batch);
   hintbox.textContent="";
   render(); checkWin();
 }
 function undo(){
   if(solved||revealed) return;
-  const batch=history.pop(); if(!batch) return;
+  const batch=historial.pop(); if(!batch) return;
   for(let k=batch.length-1;k>=0;k--) marks[batch[k].i]=batch[k].prev;
   hintbox.textContent=""; render();
 }
@@ -778,10 +836,9 @@ function checkWin(){
   if(stars.length!==N) return;
   if(!stars.every(i=>P.stars.includes(i))) return;
   solved=true; stopClock();
-  const key="nh-stats"; const st=load(key,{});
-  const s=st[P.level]||{played:0,won:0,best:null};
-  s.won++; if(s.best===null||elapsed<s.best) s.best=elapsed;
-  st[P.level]=s; save(key,st);
+  const st=loadStats(), s=statFor(st, P.level);
+  s.won++; if(s.best===null || elapsed<s.best) s.best=elapsed;
+  st[P.level]=s; save("nh-stats", st);
   verdict(true); render(); renderStats();
 }
 
@@ -807,12 +864,22 @@ function historia(){
     room.motive+"</p>";
 }
 
+const FOCUSABLES="button,[href],input,select,textarea,[tabindex]:not([tabindex='-1'])";
+let focoPrevio=null;
 function openModal(html){
   const sheet=$("#sheet"); sheet.innerHTML=html;
+  focoPrevio = document.activeElement;
   $("#modal").hidden=false;
   const first=sheet.querySelector("button"); if(first) first.focus();
 }
-function closeModal(){ $("#modal").hidden=true; }
+function closeModal(){
+  const modal=$("#modal");
+  if(modal.hidden) return;
+  modal.hidden=true;
+  // devolver el foco a donde estaba, si ese elemento sigue en la página
+  if(focoPrevio && document.contains(focoPrevio) && focoPrevio.focus) focoPrevio.focus();
+  focoPrevio=null;
+}
 
 const DIFS=[
   {k:"facil",   n:"Fácil",   d:"Deducciones directas: siempre queda una casilla obligada."},
@@ -882,7 +949,7 @@ function hint(){
   const batch=[];
   if(step.kind==="single"){ setMark(step.cells[0],PERSON,batch); autoCross(step.cells[0],batch); }
   else step.cells.forEach(i=>{ if(marks[i]===EMPTY) setMark(i,CROSS,batch); });
-  if(batch.length) history.push(batch);
+  if(batch.length) historial.push(batch);
   flash(step.cells); render(); checkWin();
 }
 function flash(list){
@@ -905,8 +972,7 @@ function stopClock(){ if(tick){clearInterval(tick); tick=null;} }
 
 /* ---------- estadísticas ---------- */
 function renderStats(){
-  const st=load("nh-stats",{});
-  const s=st[diff]||{played:0,won:0,best:null};
+  const s=statFor(loadStats(), diff);
   $("#stats").innerHTML =
     '<div><b>'+s.played+'</b><i>casos</i></div>'+
     '<div><b>'+s.won+'</b><i>resueltos</i></div>'+
@@ -916,16 +982,22 @@ function renderStats(){
 /* ---------- caso nuevo ---------- */
 function newCase(){
   stopClock(); elapsed=0; t0=0; $("#timer").textContent="00:00";
-  solved=false; revealed=false; history=[]; hintbox.textContent="";
-  P=pickCase(diff);
+  solved=false; revealed=false; historial=[]; hintbox.textContent="";
+  const caso=pickCase(diff);
+  if(!caso){
+    $("#alert").textContent="No pude cargar un caso. Probá recargar la página.";
+    return;
+  }
+  P=caso;
   marks=new Array(N*N).fill(EMPTY);
+  buildCase();
   drawWalls(P.region);
   buildSuspects();
   $("#casetext").innerHTML =
     'Anoche mataron a <b>'+VICTIMA+'</b> en esta casa. Las nueve personas que estaban adentro '+
     'se repartieron una por habitación, cuidando de no quedar pegadas entre sí. '+
     'Sólo una falló en eso, y esa es la asesina: ubicá a las nueve y el caso se cierra solo.';
-  const st=load("nh-stats",{}), sd=st[P.level]||{played:0,won:0,best:null};
+  const st=loadStats(), sd=statFor(st, P.level);
   sd.played++; st[P.level]=sd; save("nh-stats",st);
   render(); renderStats();
 }
@@ -993,7 +1065,7 @@ function terminarPintado(e){
   try{ board.releasePointerCapture(e.pointerId); }catch(_){}
   ignorarClick=true;
   if(!p.movio){ cycle(p.inicio,false); return; }
-  if(p.batch.length) history.push(p.batch);
+  if(p.batch.length) historial.push(p.batch);
   render(); checkWin();
 }
 board.addEventListener("pointerup",terminarPintado);
@@ -1014,8 +1086,8 @@ board.addEventListener("keydown",e=>{
   else if(e.key==="ArrowRight") col=Math.min(N-1,col+1);
   else moved=false;
   if(moved){ e.preventDefault(); const t=cells[idx(r,col)]; c.tabIndex=-1; t.tabIndex=0; t.focus(); return; }
-  if(e.key===" "||e.key==="Enter"){ e.preventDefault(); if(marks[i]===PERSON) cycle(i,true); else { const b=[]; setMark(i,PERSON,b); autoCross(i,b); history.push(b); render(); checkWin(); } }
-  else if(e.key.toLowerCase()==="x"){ e.preventDefault(); const b=[]; setMark(i, marks[i]===CROSS?EMPTY:CROSS, b); if(b.length) history.push(b); render(); }
+  if(e.key===" "||e.key==="Enter"){ e.preventDefault(); if(marks[i]===PERSON) cycle(i,true); else { const b=[]; setMark(i,PERSON,b); autoCross(i,b); historial.push(b); render(); checkWin(); } }
+  else if(e.key.toLowerCase()==="x"){ e.preventDefault(); const b=[]; setMark(i, marks[i]===CROSS?EMPTY:CROSS, b); if(b.length) historial.push(b); render(); }
 });
 $("#hint").addEventListener("click",hint);
 $("#undo").addEventListener("click",undo);
@@ -1029,7 +1101,19 @@ document.querySelectorAll(".seg button").forEach(b=>{
 });
 newCase();
 modalInicio();
-document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !$("#modal").hidden) closeModal(); });
+/* Con el modal abierto el foco se queda adentro: si no, se tabula al tablero
+   que está detrás y el lector de pantalla lee una página que no se puede usar. */
+document.addEventListener("keydown",e=>{
+  const modal=$("#modal");
+  if(modal.hidden) return;
+  if(e.key==="Escape"){ closeModal(); return; }
+  if(e.key!=="Tab") return;
+  const f=modal.querySelectorAll(FOCUSABLES);
+  if(!f.length) return;
+  const primero=f[0], ultimo=f[f.length-1];
+  if(e.shiftKey && document.activeElement===primero){ e.preventDefault(); ultimo.focus(); }
+  else if(!e.shiftKey && document.activeElement===ultimo){ e.preventDefault(); primero.focus(); }
+});
 $("#modal").addEventListener("click",e=>{ if(e.target===$("#modal")) closeModal(); });
 })();
 </script>

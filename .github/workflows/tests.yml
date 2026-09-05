@@ -1,0 +1,31 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Revalidar los 1373 casos
+        run: node tools/validate.js index.html tools/puzzles.txt /tmp/out.json
+
+      - name: Jugar 120 casos de punta a punta
+        run: node tools/integration-test.js index.html
+
+      - name: Detección de errores del jugador
+        run: node tools/regression-test.js index.html tools/puzzles.txt
+
+      - name: El generador sigue produciendo casos válidos
+        run: |
+          node tools/generate.js index.html 20 > /tmp/nuevos.txt
+          test -s /tmp/nuevos.txt
+          node tools/validate.js index.html /tmp/nuevos.txt /tmp/nuevos.json
