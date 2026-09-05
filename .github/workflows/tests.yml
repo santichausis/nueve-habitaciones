@@ -13,19 +13,50 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
+          cache: npm
+      - run: npm ci
 
-      - name: Revalidar los 1373 casos
-        run: node tools/validate.js index.html tools/puzzles.txt /tmp/out.json
+      - name: Tipos
+        run: npm run typecheck
 
-      - name: Jugar 120 casos de punta a punta
-        run: node tools/integration-test.js index.html
+      - name: Casos y motor de deducción
+        run: npm test
 
-      - name: Detección de errores del jugador
-        run: node tools/regression-test.js index.html tools/puzzles.txt
+      - name: Build del sitio
+        run: npm run build
+
+      - name: Build del artifact de un solo archivo
+        run: npm run artifact
 
       - name: El generador sigue produciendo casos válidos
         run: |
-          node tools/generate.js index.html 20 > /tmp/nuevos.txt
+          node tools/generate.mjs 20 > /tmp/nuevos.txt
           test -s /tmp/nuevos.txt
-          node tools/validate.js index.html /tmp/nuevos.txt /tmp/nuevos.json
+
+  publicar:
+    needs: verificar
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          PAGES_BASE_PATH: /nueve-habitaciones
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+      - id: deploy
+        uses: actions/deploy-pages@v4

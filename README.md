@@ -8,8 +8,15 @@ Es una variante de **Star Battle** (una estrella por fila, por columna y por reg
 que dos se toquen ni en diagonal), donde las regiones son las habitaciones de una casa y
 cada una tiene su ocupante. Ubicá a las nueve y el caso se cierra solo.
 
-**Jugar:** abrí `index.html` en cualquier navegador. Es un único archivo, sin dependencias
-ni build. No necesita servidor.
+**Jugar online:** https://santichausis.github.io/nueve-habitaciones/
+
+```bash
+npm install
+npm run dev        # http://localhost:3000
+npm run build      # export estático en out/
+npm run artifact   # dist/nueve-habitaciones.html, todo en un solo archivo
+npm test           # verifica los casos y el motor de deducción
+```
 
 ## Reglas
 
@@ -37,10 +44,10 @@ El nivel de un caso es la técnica más avanzada que hace falta para resolverlo 
 
 | Nivel | Casos | Qué exige |
 |---|---:|---|
-| Fácil | 333 | Sólo casillas obligadas y la regla de intersección |
-| Normal | 360 | Además, que nadie pueda estar pegado a otra persona |
-| Difícil | 680 | Además, razonamiento por conjuntos de filas, columnas y habitaciones |
-| **Total** | **1373** | |
+| Fácil | 800 | Sólo casillas obligadas y la regla de intersección |
+| Normal | 800 | Además, que nadie pueda estar pegado a otra persona |
+| Difícil | 800 | Además, razonamiento por conjuntos de filas, columnas y habitaciones |
+| **Total** | **2400** | |
 
 ## Cómo se generan los casos
 
@@ -63,6 +70,27 @@ El generador (`tools/generate.js`) resuelve las dos cosas:
 Los casos se precalculan y se embeben en el HTML: el juego abre instantáneo y la
 dificultad elegida es la que se recibe.
 
+
+## Cómo está armado
+
+Next.js (App Router) con export estático y TypeScript. La lógica del juego no
+depende de React ni del navegador, así que las herramientas de Node usan
+exactamente el mismo código que corre en la página: no hay dos versiones del
+motor que puedan divergir.
+
+```
+app/          layout y página
+components/   tablero, lista de sospechosos, modales
+lib/          lógica pura: geometría, motor de deducción, reglas, estado
+data/         los 2400 casos precalculados
+artifact/     punto de entrada del build de un solo archivo
+tools/        generador, verificación y empaquetado
+```
+
+El juego se publica en dos formatos desde la misma fuente: el export estático
+para GitHub Pages y un HTML autocontenido (`npm run artifact`) que empaqueta
+todo con esbuild, sin pedidos de red más allá de la tipografía.
+
 ## Verificación
 
 Cada uno de los 1373 casos pasa siete chequeos antes de entrar, con un contador de
@@ -77,20 +105,13 @@ soluciones escrito aparte que no comparte código con el juego:
 - el cuerpo tiene exactamente una persona pegada — si tuviera dos, el asesino sería ambiguo.
 
 ```bash
-node tools/validate.js index.html tools/puzzles.txt /tmp/out.json  # revalida los 1373
-node tools/integration-test.js index.html                          # juega 120 casos enteros
-node tools/regression-test.js index.html tools/puzzles.txt         # detección de errores
+npm test                              # los 2400 casos y el motor, con node:test
+node tools/generate.mjs 60 > nuevos.txt   # 60 segundos de generación
 ```
 
-Para generar casos nuevos (los escribe en stdout, en el mismo formato):
-
-```bash
-node tools/generate.js index.html 60 > nuevos.txt   # 60 segundos de generación
-node tools/validate.js index.html nuevos.txt /tmp/nuevos.json
-```
-
-Un caso tarda alrededor de un segundo en tallarse, y sólo entra si el solver del juego
-puede resolverlo sin adivinar; en la práctica salen unos tres casos por segundo.
+El contador de soluciones del verificador está escrito aparte a propósito: no
+comparte código con el motor del juego, así un error en el motor no se valida a
+sí mismo.
 
 `tools/puzzles.txt` es la fuente: una línea por caso, con el nivel y 92 caracteres
 (81 dígitos de habitación, 9 columnas —una por fila— y la casilla del cuerpo).

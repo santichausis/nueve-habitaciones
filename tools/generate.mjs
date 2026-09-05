@@ -1,24 +1,16 @@
 #!/usr/bin/env node
 /*
- * Generador de casos de Nueve Habitaciones.
+ * Generador de casos.  npm run generate -- 60 > nuevos.txt
  *
- *   node tools/generate.js index.html 60 > nuevos.txt
- *
- * Reutiliza el motor de deducción del propio juego (index.html), así que un caso
- * sólo se acepta si el solver que da las pistas puede resolverlo sin adivinar.
+ * Usa el motor de deducción del propio juego, así que un caso sólo se acepta si
+ * el solver que da las pistas puede resolverlo sin adivinar.
  *
  * El punto no obvio: repartir habitaciones al azar prácticamente nunca da
  * solución única. Por eso las habitaciones se *tallan* — ver carve().
  */
-const fs = require("fs");
-const [,, htmlPath, segundosArg] = process.argv;
-if (!htmlPath) { console.error("uso: node tools/generate.js <index.html> [segundos]"); process.exit(1); }
-const SEGUNDOS = Number(segundosArg || 30);
+import { Engine, LEVELS, NIVELES, NB8, nb4, cuentaSoluciones } from "./shared.mjs";
 
-// el motor del juego: Engine, LEVELS, nb4, NB8, idx, rc, coord
-const html = fs.readFileSync(htmlPath, "utf8");
-const src = html.slice(html.indexOf("const N = 9;"), html.indexOf("/* ---------- estado ---------- */"));
-eval(src.replace(/^(const|let) /gm, "var "));
+const SEGUNDOS = Number(process.argv[2] || 30);
 
 // 1. una ubicación válida: una por fila y columna, sin tocarse
 function genSolution() {
@@ -69,7 +61,6 @@ function altSolutions(region, key, tope) {
   })(0, -1);
   return out;
 }
-function cuentaSoluciones(region, tope) { return altSolutions(region, "", tope).length; }
 
 function sigueConexa(region, g, sin) {
   const cells = []; for (let i = 0; i < 81; i++) if (region[i] === g && i !== sin) cells.push(i);
@@ -122,10 +113,10 @@ function carve(stars) {
   return null;
 }
 
+
 // 4. dificultad = el repertorio mínimo que lo resuelve; null si hace falta adivinar
 function grade(region) {
-  for (const nivel of ["facil", "normal", "dificil"])
-    if (new Engine(region).run(LEVELS[nivel])) return nivel;
+  for (const nivel of NIVELES) if (new Engine(region).run(LEVELS[nivel])) return nivel;
   return null;
 }
 
@@ -138,16 +129,16 @@ while ((Date.now() - t0) / 1000 < SEGUNDOS) {
   if (cuentaSoluciones(region, 3) !== 1) continue;
   const e = new Engine(region);
   if (!e.run(LEVELS[nivel])) continue;
-  if (!stars.every(i => e.star[i])) continue;          // el solver llega a ESTA solución
+  if (!stars.every((i) => e.star[i])) continue;          // el solver llega a ESTA solución
   const esPersona = new Set(stars), candidatos = [];
   for (let i = 0; i < 81; i++) {
     if (esPersona.has(i)) continue;
-    if (NB8[i].filter(x => esPersona.has(x)).length === 1) candidatos.push(i);  // asesino inequívoco
+    if (NB8[i].filter((x) => esPersona.has(x)).length === 1) candidatos.push(i);  // asesino inequívoco
   }
   if (!candidatos.length) continue;
-  const cuerpo = candidatos[(Math.random()*candidatos.length)|0];
+  const cuerpo = candidatos[(Math.random() * candidatos.length) | 0];
   let s = ""; for (let i = 0; i < 81; i++) s += region[i];
-  s += stars.map(i => i % 9).join("") + String(cuerpo).padStart(2, "0");
+  s += stars.map((i) => i % 9).join("") + String(cuerpo).padStart(2, "0");
   salida.push(nivel + " " + s);
   cuenta[nivel]++;
 }
