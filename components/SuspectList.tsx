@@ -3,6 +3,7 @@
 import { coord } from "@/lib/grid";
 import { PERSON, type Mark } from "@/lib/game";
 import { ROOMS } from "@/lib/rooms";
+import Emblema from "./Emblema";
 
 interface Props {
   marks: Mark[];
@@ -40,7 +41,11 @@ export default function SuspectList({ marks, roomCells, guilty, apuntada, onResa
               (ubicado ? `Ubicado en ${coord(cel)}.` : "Sin ubicar.")
             }
           >
-            <span className="swatch" aria-hidden="true" />
+            {/* El mismo sello que en el tablero: así la relación
+                emblema-persona se aprende sola en la primera partida. */}
+            <span className="swatch" aria-hidden="true">
+              <Emblema g={g} />
+            </span>
             <span className="who" aria-hidden="true">
               <b>{room.who}</b>
               <i>

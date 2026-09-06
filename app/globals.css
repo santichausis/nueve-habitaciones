@@ -71,6 +71,8 @@
 
   /* Señal de "mirá acá" de las pistas. Separada del acento, que significa error. */
   --spot:#1F5C7A;
+  /* Luz de la tinta del emblema: el sello es oscuro en claro y claro en oscuro */
+  --sello-ink:96%;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -87,6 +89,7 @@
     --good:#68B98D;
     --shadow:rgba(0,0,0,.45);
     --spot:#8FCBE8;
+    --sello-ink:13%;
     --room-s:42%; --room-l:29%;
     --strong-s:60%; --strong-l:66%;
   }
@@ -105,6 +108,7 @@
   --good:#68B98D;
   --shadow:rgba(0,0,0,.45);
   --spot:#8FCBE8;
+  --sello-ink:13%;
   --room-s:42%; --room-l:29%;
   --strong-s:60%; --strong-l:66%;
 }
@@ -213,23 +217,13 @@ button.action:disabled{opacity:.4;cursor:not-allowed}
 .cell{
   position:relative;border:0;padding:0;margin:0;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
+  /* contexto para las @container del sello: sin esto no matchea ninguna */
+  container-type:inline-size;
   background:hsl(var(--h) var(--room-s) calc(var(--room-l) + var(--dl)));
   transition:filter .12s ease;
 }
 @media (prefers-reduced-motion:reduce){.cell{transition:none}}
 .cell[data-mark="0"]{cursor:cell}
-/* El nombre de la habitación, una vez por región */
-.room-tag{
-  position:absolute;top:3px;left:4px;right:3px;z-index:1;pointer-events:none;
-  font:500 9.5px/1 "IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--ink);opacity:.5;text-align:left;
-  white-space:nowrap;overflow:hidden;text-overflow:clip;
-}
-/* En celdas chicas el nombre no entra y se cortaría ("BIBL", "COCI"): en ese
-   caso no se muestra. La lista de sospechosos ya lleva los nombres. */
-@container (max-width:62px){.room-tag{display:none}}
-@container (min-width:86px){.room-tag{font-size:10.5px}}
-
 /* 5. Guías de fila y columna de la casilla apuntada */
 .cell.guia:not(:hover)::after{
   content:"";position:absolute;inset:0;pointer-events:none;
@@ -238,42 +232,88 @@ button.action:disabled{opacity:.4;cursor:not-allowed}
 .cell:hover{filter:brightness(1.14) saturate(1.2)}
 .cell:focus-visible{outline:2px solid var(--accent);outline-offset:-3px;z-index:4}
 
-@keyframes pin-in{
-  0%{transform:scale(.2);opacity:0}
-  60%{transform:scale(1.12)}
-  100%{transform:scale(1);opacity:1}
+/* La ficha se apoya sobre el tablero: cae rotada y se asienta mientras la
+   sombra se cierra. Eso es lo que la hace sentir apoyada y no aparecida. */
+@keyframes apoyar{
+  0%{opacity:0;transform:scale(1.34) rotate(-20deg);box-shadow:0 10px 18px var(--shadow)}
+  70%{opacity:1;transform:scale(.97) rotate(2deg)}
+  100%{opacity:1;transform:none;box-shadow:0 1px 2px var(--shadow)}
 }
+
+/* Sello de la habitación. La estructura viene de una ficha, pero el borde es
+   estriado como una medalla y las estrías van a bajo contraste: tenía que leer
+   como sello de expediente, no como mesa de casino. */
 .pin{
-  width:58%;height:58%;border-radius:50%;
-  background:hsl(var(--h) var(--strong-s) var(--strong-l));
-  box-shadow:inset 0 0 0 2px hsl(var(--h) var(--strong-s) calc(var(--strong-l) + 14%)), 0 1px 2px var(--shadow);
-  animation:pin-in .22s cubic-bezier(.34,1.56,.64,1) backwards;
-  display:flex;align-items:center;justify-content:center;
-  font-family:"Bodoni Moda",Didot,serif;font-weight:700;
-  font-size:clamp(11px,2.4cqw,20px);line-height:1;
-  color:hsl(var(--h) 60% 12%);
+  position:relative;width:58%;height:58%;border-radius:50%;
+  --aro:hsl(var(--h) var(--strong-s) calc(var(--strong-l) + var(--dl)));
+  /* Las estrías van a bajo contraste a propósito: tienen que leer como el
+     borde labrado de una medalla, no como un sol. El aro que las contiene sí
+     se marca, porque es el que da el aire de sello. */
+  --estria:hsl(var(--h) var(--strong-s) calc(var(--strong-l) + var(--dl) + 8%));
+  --filo:hsl(var(--h) var(--strong-s) calc(var(--strong-l) + var(--dl) + 20%));
+  --campo:hsl(var(--h) var(--strong-s) calc(var(--strong-l) + var(--dl) - 5%));
+  background:var(--aro);
+  box-shadow:0 1px 2px var(--shadow);
+  display:grid;place-items:center;
+  animation:apoyar .26s cubic-bezier(.2,.9,.3,1.15) backwards;
 }
-.cell{container-type:inline-size}
-@keyframes err-pulse{
-  0%{box-shadow:inset 0 0 0 0 var(--accent)}
-  45%{box-shadow:inset 0 0 0 4px var(--accent)}
-  100%{box-shadow:inset 0 0 0 2px var(--accent)}
+.pin::before{
+  content:"";position:absolute;inset:19%;border-radius:50%;
+  background:var(--campo);
+}
+.emblema{
+  position:relative;width:46%;height:46%;
+  color:hsl(var(--h) 45% var(--sello-ink));
+  stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;
+}
+
+/* El sello se arma por escalones: cada pieza aparece sólo cuando tiene tamaño
+   para leerse. A 17px (celular) queda el disco de siempre. */
+@container (min-width:44px){
+  .pin::before{box-shadow:0 0 0 1.5px var(--filo)}
+}
+@container (min-width:68px){
+  .pin{
+    background:repeating-conic-gradient(var(--aro) 0 6deg, var(--estria) 0 12deg);
+  }
+}
+@container (max-width:43px){
+  .pin::before{inset:26%}
+  .emblema{display:none}
+}
+
+@keyframes err-wobble{
+  0%,100%{transform:rotate(0)}
+  20%{transform:rotate(-7deg)}
+  45%{transform:rotate(6deg)}
+  70%{transform:rotate(-3deg)}
 }
 .cell.err .pin{
-  background:var(--accent);color:#fff;
-  box-shadow:inset 0 0 0 2px var(--accent-soft);
-  animation:err-pulse .55s ease-out;
+  --aro:var(--accent);--campo:var(--accent);--estria:var(--accent-soft);
+  background:var(--accent);
+  animation:err-wobble .34s ease-in-out;
 }
+.cell.err .emblema{color:#fff}
+
+/* Al señalar a su sospechoso en la lista, el sello se levanta */
+.cell.lit .pin{transform:scale(1.09);box-shadow:0 5px 12px var(--shadow)}
+.pin{transition:transform .18s ease-out,box-shadow .18s ease-out}
 
 /* Los tachados automáticos entran escalonados desde la ficha que los provocó:
    se ve POR QUÉ quedaron prohibidos, en vez de aparecer todos en un frame. */
-@keyframes cross-in{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:.42}}
+/* La ✕ es la marca más numerosa del tablero: puede haber setenta contra nueve
+   sellos. Su trabajo es retroceder, porque lo que la vista busca son las
+   casillas LIBRES. Por eso es fina, chica, y la casilla tachada además pierde
+   saturación para que el grupo se hunda y lo disponible salte. */
+@keyframes cross-in{from{transform:scale(.45);opacity:0}to{transform:scale(1);opacity:.4}}
 .cross{
-  width:34%;height:34%;opacity:.42;color:var(--ink-soft);
+  width:26%;height:26%;opacity:.4;color:var(--ink-soft);
   animation:cross-in .18s ease-out backwards;
   animation-delay:var(--delay,0ms);
 }
-.cross line{stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
+.cross line{stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+.cell[data-mark="1"]{filter:saturate(.45)}
+.cell[data-mark="1"]:hover{filter:saturate(.75) brightness(1.1)}
 
 /* Callejón sin salida: marca la zona sin tapar las ✕, que siguen haciendo falta
    para entender el error. */
@@ -313,11 +353,18 @@ button.action:disabled{opacity:.4;cursor:not-allowed}
 .board.entra .brow:nth-child(9) .cell{animation-delay:208ms}
 
 /* Al resolver, las nueve fichas se encienden en secuencia */
-@keyframes celebra{0%{transform:scale(1)}40%{transform:scale(1.24)}100%{transform:scale(1)}}
-.board.celebra .pin{animation:celebra .5s ease-out backwards;animation-delay:calc(var(--orden,0) * 110ms)}
+/* Al resolver, los nueve sellos giran en cadena: 105ms entre uno y otro son
+   945ms, que entran justos en la espera que ya existe antes del modal. */
+@keyframes voltear{
+  0%{transform:rotateY(0) scale(1)}
+  50%{transform:rotateY(180deg) scale(1.16)}
+  100%{transform:rotateY(360deg) scale(1)}
+}
+.board.celebra .pin{animation:voltear .52s ease-in-out backwards;animation-delay:calc(var(--orden,0) * 105ms)}
 
 @media (prefers-reduced-motion:reduce){
   .pin,.cross,.board.celebra .pin,.board.entra .cell,.cell.err .pin{animation:none}
+  .pin{transition:none}
   body{transition:none}
   .cell.flash::after{animation:none;opacity:1}
   .colhead span,.rowhead span{transition:none}
@@ -378,7 +425,7 @@ h2.fuerte{
 
 .suspects{margin:0;padding:0;list-style:none;display:flex;flex-direction:column}
 .suspects li{
-  display:grid;grid-template-columns:16px 1fr auto;cursor:default;
+  display:grid;grid-template-columns:25px 1fr auto;cursor:default;
   transition:opacity .3s ease;gap:var(--sp-3);align-items:center;
   padding:5px var(--sp-1);border-bottom:1px solid var(--rule-soft);
   border-radius:2px;
@@ -387,11 +434,18 @@ h2.fuerte{
 /* El vínculo va en los dos sentidos: apuntar una casilla marca a su sospechoso */
 .suspects li.lit{background:var(--surface-2);box-shadow:inset 2px 0 0 hsl(var(--h) var(--strong-s) var(--strong-l))}
 .suspects li:last-child{border-bottom:0}
+/* El mismo sello que en el tablero, en chico: sin esto la relación entre el
+   emblema y la persona habría que adivinarla. */
 .swatch{
-  width:16px;height:16px;border-radius:3px;
-  background:hsl(var(--h) var(--room-s) calc(var(--room-l) + var(--dl)));
-  box-shadow:inset 0 0 0 1.5px hsl(var(--h) var(--strong-s) var(--strong-l));
+  width:25px;height:25px;border-radius:50%;display:grid;place-items:center;position:relative;
+  background:hsl(var(--h) var(--strong-s) calc(var(--strong-l) + var(--dl)));
+  box-shadow:0 1px 2px var(--shadow);
 }
+.swatch::before{
+  content:"";position:absolute;inset:19%;border-radius:50%;
+  background:hsl(var(--h) var(--strong-s) calc(var(--strong-l) + var(--dl) - 5%));
+}
+.swatch .emblema{width:60%;height:60%;stroke-width:2.1}
 .who{min-width:0}
 .who b{
   display:inline-block;position:relative;

@@ -129,8 +129,13 @@ sí mismo.
 - En móvil los controles son una barra fija: pedir una pista no obliga a perder de vista
   el tablero.
 - Toda animación respeta `prefers-reduced-motion`.
-- **El tablero es un plano, no una grilla**: cada habitación lleva su nombre y los
-  muros tienen una puerta por cada par de cuartos vecinos.
+- **El tablero es un plano, no una grilla**: los muros tienen una puerta por cada par
+  de cuartos vecinos y cada persona ubicada es un sello con el emblema de su
+  habitación — una copa en la Bodega, una llave en el Vestíbulo.
+- **El emblema es el único canal de identidad que no depende del color.** Las nueve
+  habitaciones se distinguían sólo por matiz; ahora también por símbolo.
+- El sello se arma por escalones según el tamaño de la casilla: filo labrado en
+  escritorio, sólo emblema en tablet, disco liso en el celular a 18 px.
 - **Tipografías auto-hospedadas** (subconjunto latin, ~93 KB): sin pedidos a
   terceros y sin el salto de texto al cargar. En el artifact van incrustadas, así
   que ese archivo no toca la red en ningún momento.

@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { COLS, N, coord, idx, rc } from "@/lib/grid";
 import { CROSS, PERSON, type Mark } from "@/lib/game";
 import { ROOMS } from "@/lib/rooms";
+import Emblema from "./Emblema";
 
 interface Props {
   region: ArrayLike<number>;
@@ -88,39 +89,6 @@ function Muros({ region }: { region: ArrayLike<number> }) {
       <path className="wall" fill="none" d={muros} />
     </svg>
   );
-}
-
-/**
- * Dónde poner el nombre de cada habitación: la casilla de la región más cercana
- * a su centro, para que el rótulo caiga adentro incluso en formas raras.
- */
-function anclas(region: ArrayLike<number>): { g: number; r: number; c: number }[] {
-  const celdas: number[][] = Array.from({ length: N }, () => []);
-  for (let i = 0; i < N * N; i++) celdas[region[i]].push(i);
-
-  return celdas.map((lista, g) => {
-    let sr = 0;
-    let sc = 0;
-    for (const i of lista) {
-      const [r, c] = rc(i);
-      sr += r;
-      sc += c;
-    }
-    const cr = sr / lista.length;
-    const cc = sc / lista.length;
-    let mejor = lista[0];
-    let dist = Infinity;
-    for (const i of lista) {
-      const [r, c] = rc(i);
-      const d = (r - cr) ** 2 + (c - cc) ** 2;
-      if (d < dist) {
-        dist = d;
-        mejor = i;
-      }
-    }
-    const [r, c] = rc(mejor);
-    return { g, r, c };
-  });
 }
 
 /** Casillas de la recta entre dos, para que un arrastre rápido no saltee ninguna. */
@@ -285,7 +253,6 @@ export default function Board({
   const litSet = new Set(lit);
   const flashSet = new Set(flash);
   const [ar, ac] = apuntada >= 0 ? rc(apuntada) : [-1, -1];
-  const rotulos = anclas(region);
   const unitSet = new Set(hintUnit);
   const cascadaSet = new Set(cascada?.celdas ?? []);
 
@@ -351,7 +318,6 @@ export default function Board({
               const g = region[i];
               const estado =
                 marks[i] === PERSON ? "persona" : marks[i] === CROSS ? "descartada" : "vacía";
-              const rotulo = rotulos.find((x) => x.r === r && x.c === c && x.g === g);
               const clases = [
                 "cell",
                 r === ar || c === ac ? "guia" : "",
@@ -388,17 +354,10 @@ export default function Board({
                   }
                   aria-label={`${coord(i)}, ${ROOMS[g].name}, ${estado}`}
                 >
-                  {/* El nombre de la habitación, una vez por región: sin esto hay que
-                      traducir color a nombre mirando la lista del costado. */}
-                  {rotulo && (
-                    <span className="room-tag" aria-hidden="true">
-                      {ROOMS[g].name}
-                    </span>
-                  )}
                   {marks[i] === PERSON ? (
-                    /* La ficha lleva la inicial de quien ocupa esa habitación */
+                    /* Sello de la habitación: el emblema dice quién es sin leer nada */
                     <span className="pin" aria-hidden="true">
-                      {ROOMS[g].who.replace(/^(Dra\.|Cnel\.|Condesa)\s+/, "").charAt(0)}
+                      <Emblema g={g} />
                     </span>
                   ) : marks[i] === CROSS ? (
                     <Cruz />
