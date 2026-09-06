@@ -14,12 +14,35 @@ import { useGame } from "@/lib/useGame";
 /** Al resolver, las fichas se encienden en secuencia antes de contar la historia. */
 const ESPERA_VICTORIA = 1100;
 
+/** Barras de los últimos tiempos: la más oscura es el mejor. */
+function Distribucion({ tiempos, mejor }: { tiempos: number[]; mejor: number | null }) {
+  const ultimos = tiempos.slice(-12);
+  const tope = Math.max(...ultimos);
+  return (
+    <div className="dist" aria-hidden="true">
+      {ultimos.map((t, i) => (
+        <span
+          key={i}
+          className={t === mejor ? "mejor" : undefined}
+          style={{ height: `${Math.max(8, Math.round((t / tope) * 100))}%` }}
+          title={fmtTime(t)}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function Page() {
   const g = useGame();
   const [inicioAbierto, setInicioAbierto] = useState(true);
   const [verdictoDescartado, setVerdictoDescartado] = useState(false);
   const [verdictoListo, setVerdictoListo] = useState(false);
   const [lit, setLit] = useState<number[]>([]);
+  /** Habitación bajo el cursor en el tablero: resalta a su sospechoso. */
+  const [salaApuntada, setSalaApuntada] = useState<number | null>(null);
+  const [barraAbierta, setBarraAbierta] = useState(true);
+  /** En táctil no hay arrastre: este modo hace que un toque tache directo. */
+  const [modo, setModo] = useState<"ciclo" | "tachar" | "ubicar">("ciclo");
   // null = seguir a la partida; true/false = el jugador lo abrió o cerró a mano
   const [casoAbierto, setCasoAbierto] = useState<boolean | null>(null);
 
@@ -63,7 +86,10 @@ export default function Page() {
       <div className="wrap">
         <header className="masthead">
           <div className="brand">
-            <span className="tagline">Un caso de lógica pura</span>
+            <span className="tagline">
+              Un caso de lógica pura
+              {g.caso && <> · Expediente n.º {String(g.caso.body * 17 + g.caso.killer).padStart(4, "0")}</>}
+            </span>
             <h1>Nueve Habitaciones</h1>
           </div>
           <div className="setup">
@@ -93,16 +119,29 @@ export default function Page() {
                 hintUnit={g.hintUnit}
                 cascada={g.cascada}
                 celebrar={g.solved}
+                caseKey={g.caseKey}
                 bloqueado={g.solved || g.revealed}
+                modo={modo}
                 onCiclar={g.ciclar}
                 onPintar={g.pintar}
+                onHabitacion={setSalaApuntada}
               />
             )}
           </div>
 
           <div className="panel">
             {/* 1. Lo operativo primero: es lo que se mira en cada jugada */}
-            <section className="block operativo" aria-labelledby="h-progreso">
+            <section
+              className={barraAbierta ? "block operativo" : "block operativo plegada"}
+              aria-labelledby="h-progreso"
+            >
+              <button
+                className="tirador"
+                type="button"
+                onClick={() => setBarraAbierta((v) => !v)}
+                aria-expanded={barraAbierta}
+                aria-label={barraAbierta ? "Ocultar los controles" : "Mostrar los controles"}
+              />
               <h2 id="h-progreso" className="sr-only">
                 Progreso
               </h2>
@@ -132,6 +171,27 @@ export default function Page() {
                   );
                 })}
               </ol>
+
+              {/* Sólo en táctil: reemplaza al arrastre, que bloquearía el scroll */}
+              <div className="modos" role="group" aria-label="Qué hace tocar una casilla">
+                {(
+                  [
+                    ["ciclo", "Ciclo", "Tocar recorre: descartar, ubicar, limpiar"],
+                    ["tachar", "Tachar ✕", "Tocar descarta o limpia la casilla"],
+                    ["ubicar", "Ubicar ●", "Tocar ubica o saca a la persona"],
+                  ] as const
+                ).map(([m, txt, ayuda]) => (
+                  <button
+                    key={m}
+                    type="button"
+                    aria-pressed={modo === m}
+                    onClick={() => setModo(m)}
+                    title={ayuda}
+                  >
+                    {txt}
+                  </button>
+                ))}
+              </div>
 
               <div className="tools">
                 <button className="action ghost" type="button" onClick={g.pedirPista}>
@@ -178,6 +238,7 @@ export default function Page() {
                   marks={g.marks}
                   roomCells={g.roomCells}
                   guilty={g.solved || g.revealed ? g.caso.guilty : null}
+                  apuntada={salaApuntada}
                   onResaltar={setLit}
                 />
               )}
@@ -229,13 +290,11 @@ export default function Page() {
             </details>
 
             {/* 5. Récord: interesa entre partidas, no durante */}
-            <section className="block record" aria-labelledby="h-record">
+          </div>
+
+          <section className="block record" aria-labelledby="h-record">
               <h2 id="h-record">Tu récord en {LEVEL_LABEL[g.level]}</h2>
               <div className="stats">
-                <div>
-                  <b>{g.stat.played}</b>
-                  <i>casos</i>
-                </div>
                 <div>
                   <b>{g.stat.won}</b>
                   <i>resueltos</i>
@@ -244,14 +303,33 @@ export default function Page() {
                   <b>{g.stat.best === null ? "—" : fmtTime(g.stat.best)}</b>
                   <i>mejor</i>
                 </div>
+                <div>
+                  <b>{g.stat.streak}</b>
+                  <i>racha</i>
+                </div>
               </div>
-            </section>
-          </div>
+
+              {/* Un "mejor tiempo" suelto no dice nada: la distribución le da contexto */}
+              {g.stat.times.length >= 3 && (
+                <Distribucion tiempos={g.stat.times} mejor={g.stat.best} />
+              )}
+
+              <p className="restantes">
+                Te quedan <b>{g.restantes}</b> casos sin jugar en {LEVEL_LABEL[g.level]}
+                {g.stat.bestStreak > 1 && <> · mejor racha: {g.stat.bestStreak}</>}
+              </p>
+          </section>
         </div>
 
         <footer>
-          Cada caso está verificado: la solución es única y se llega a ella sólo por deducción,
-          nunca adivinando.
+          <p className="sello">Nueve Habitaciones</p>
+          <p>
+            Cada caso está verificado: la solución es única y se llega a ella sólo por deducción,
+            nunca adivinando.
+          </p>
+          <p className="creditos">
+            <a href="https://github.com/santichausis/nueve-habitaciones">Código y generador</a>
+          </p>
         </footer>
       </div>
 

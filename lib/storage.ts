@@ -32,7 +32,15 @@ export interface Stat {
   played: number;
   won: number;
   best: number | null;
+  /** Últimos tiempos, para poder mostrar una distribución y no un número suelto. */
+  times: number[];
+  /** Casos resueltos seguidos, y la mejor marca histórica. */
+  streak: number;
+  bestStreak: number;
 }
+
+/** Cuántos tiempos se guardan por dificultad. */
+export const MAX_TIEMPOS = 40;
 
 export type Stats = Partial<Record<Level, Stat>>;
 
@@ -41,14 +49,28 @@ export function loadStats(): Stats {
   return st && typeof st === "object" && !Array.isArray(st) ? (st as Stats) : {};
 }
 
-/** Normaliza una entrada guardada a la forma esperada. */
+/** Una estadística vacía, ya con la forma completa. */
+export const statVacia = (): Stat => ({ played: 0, won: 0, best: null, times: [], streak: 0, bestStreak: 0 });
+
 export function statFor(st: Stats, level: Level): Stat {
   const s = st[level] as unknown;
-  if (!s || typeof s !== "object") return { played: 0, won: 0, best: null };
+  if (!s || typeof s !== "object") return statVacia();
   const raw = s as Record<string, unknown>;
   const best =
     typeof raw.best === "number" && Number.isFinite(raw.best) && raw.best >= 0 ? raw.best : null;
-  return { played: Number(raw.played) || 0, won: Number(raw.won) || 0, best };
+  const times = Array.isArray(raw.times)
+    ? raw.times
+        .filter((t): t is number => typeof t === "number" && Number.isFinite(t) && t >= 0)
+        .slice(-MAX_TIEMPOS)
+    : [];
+  return {
+    played: Number(raw.played) || 0,
+    won: Number(raw.won) || 0,
+    best,
+    times,
+    streak: Number(raw.streak) || 0,
+    bestStreak: Number(raw.bestStreak) || 0,
+  };
 }
 
 export const bagKey = (level: Level) => `nh-bag-${level}`;

@@ -18,7 +18,13 @@ interface Props {
   cascada: { origen: number; celdas: number[] } | null;
   /** Al resolver, las fichas se encienden en secuencia. */
   celebrar: boolean;
+  /** Cambia con cada caso: reinicia la animación de entrada. */
+  caseKey: number;
   bloqueado: boolean;
+  /** En táctil no hay arrastre (bloquearía el scroll): el modo decide qué hace un toque. */
+  modo: "ciclo" | "tachar" | "ubicar";
+  /** Avisa qué habitación está bajo el cursor, para resaltar su sospechoso. */
+  onHabitacion: (g: number | null) => void;
   onCiclar: (i: number, atras?: boolean) => void;
   onPintar: (celdas: number[], modo: "tachar" | "borrar") => void;
 }
@@ -39,12 +45,40 @@ function Muros({ region }: { region: ArrayLike<number> }) {
   let finas = "";
   for (let k = 1; k < N; k++) finas += `M ${k} 0 L ${k} ${N} M 0 ${k} L ${N} ${k} `;
 
-  let muros = `M 0 0 L ${N} 0 L ${N} ${N} L 0 ${N} Z `;
+  /* Una puerta por cada par de habitaciones vecinas, no una por borde de celda:
+     si no, un muro largo se lee como línea punteada en vez de como pared. */
+  const PUERTA = 0.34;
+  const hueco = (1 - PUERTA) / 2;
+
+  type Seg = { x1: number; y1: number; x2: number; y2: number; vertical: boolean };
+  const porPar = new Map<string, Seg[]>();
   for (let r = 0; r < N; r++) {
     for (let c = 0; c < N; c++) {
       const i = idx(r, c);
-      if (c < N - 1 && region[i] !== region[i + 1]) muros += `M ${c + 1} ${r} L ${c + 1} ${r + 1} `;
-      if (r < N - 1 && region[i] !== region[i + N]) muros += `M ${c} ${r + 1} L ${c + 1} ${r + 1} `;
+      const agregar = (otro: number, seg: Seg) => {
+        const clave = `${Math.min(region[i], otro)}-${Math.max(region[i], otro)}`;
+        const lista = porPar.get(clave);
+        if (lista) lista.push(seg);
+        else porPar.set(clave, [seg]);
+      };
+      if (c < N - 1 && region[i] !== region[i + 1])
+        agregar(region[i + 1], { x1: c + 1, y1: r, x2: c + 1, y2: r + 1, vertical: true });
+      if (r < N - 1 && region[i] !== region[i + N])
+        agregar(region[i + N], { x1: c, y1: r + 1, x2: c + 1, y2: r + 1, vertical: false });
+    }
+  }
+
+  let muros = `M 0 0 L ${N} 0 L ${N} ${N} L 0 ${N} Z `;
+  for (const segs of porPar.values()) {
+    const conPuerta = segs[Math.floor(segs.length / 2)];
+    for (const s of segs) {
+      if (s !== conPuerta) {
+        muros += `M ${s.x1} ${s.y1} L ${s.x2} ${s.y2} `;
+      } else if (s.vertical) {
+        muros += `M ${s.x1} ${s.y1} L ${s.x1} ${s.y1 + hueco} M ${s.x1} ${s.y2 - hueco} L ${s.x1} ${s.y2} `;
+      } else {
+        muros += `M ${s.x1} ${s.y1} L ${s.x1 + hueco} ${s.y1} M ${s.x2 - hueco} ${s.y1} L ${s.x2} ${s.y1} `;
+      }
     }
   }
 
@@ -54,6 +88,39 @@ function Muros({ region }: { region: ArrayLike<number> }) {
       <path className="wall" fill="none" d={muros} />
     </svg>
   );
+}
+
+/**
+ * Dónde poner el nombre de cada habitación: la casilla de la región más cercana
+ * a su centro, para que el rótulo caiga adentro incluso en formas raras.
+ */
+function anclas(region: ArrayLike<number>): { g: number; r: number; c: number }[] {
+  const celdas: number[][] = Array.from({ length: N }, () => []);
+  for (let i = 0; i < N * N; i++) celdas[region[i]].push(i);
+
+  return celdas.map((lista, g) => {
+    let sr = 0;
+    let sc = 0;
+    for (const i of lista) {
+      const [r, c] = rc(i);
+      sr += r;
+      sc += c;
+    }
+    const cr = sr / lista.length;
+    const cc = sc / lista.length;
+    let mejor = lista[0];
+    let dist = Infinity;
+    for (const i of lista) {
+      const [r, c] = rc(i);
+      const d = (r - cr) ** 2 + (c - cc) ** 2;
+      if (d < dist) {
+        dist = d;
+        mejor = i;
+      }
+    }
+    const [r, c] = rc(mejor);
+    return { g, r, c };
+  });
 }
 
 /** Casillas de la recta entre dos, para que un arrastre rápido no saltee ninguna. */
@@ -92,12 +159,17 @@ export default function Board({
   hintUnit,
   cascada,
   celebrar,
+  caseKey,
   bloqueado,
+  modo,
   onCiclar,
   onPintar,
+  onHabitacion,
 }: Props) {
   const boardRef = useRef<HTMLDivElement>(null);
   const [foco, setFoco] = useState(0);
+  /** Casilla bajo el cursor: sirve para las guías de fila y columna. */
+  const [apuntada, setApuntada] = useState(-1);
   const pintando = useRef<{
     modo: "tachar" | "borrar";
     inicio: number;
@@ -161,7 +233,10 @@ export default function Board({
       /* ya liberado */
     }
     ignorarClick.current = true;
-    if (!p.movio) onCiclar(p.inicio, false);
+    if (p.movio) return;
+    if (modo === "tachar") onPintar([p.inicio], marks[p.inicio] === CROSS ? "borrar" : "tachar");
+    else if (modo === "ubicar") onCiclar(p.inicio, marks[p.inicio] === PERSON);
+    else onCiclar(p.inicio, false);
   };
 
   const onClick = (e: React.MouseEvent) => {
@@ -171,7 +246,10 @@ export default function Board({
     }
     const c = (e.target as HTMLElement).closest<HTMLElement>(".cell");
     const i = c ? Number(c.dataset.i) : celdaEn(e.clientX, e.clientY);
-    if (i >= 0) onCiclar(i, false);
+    if (i < 0) return;
+    if (modo === "tachar") onPintar([i], marks[i] === CROSS ? "borrar" : "tachar");
+    else if (modo === "ubicar") onCiclar(i, marks[i] === PERSON);
+    else onCiclar(i, false);
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -206,6 +284,8 @@ export default function Board({
 
   const litSet = new Set(lit);
   const flashSet = new Set(flash);
+  const [ar, ac] = apuntada >= 0 ? rc(apuntada) : [-1, -1];
+  const rotulos = anclas(region);
   const unitSet = new Set(hintUnit);
   const cascadaSet = new Set(cascada?.celdas ?? []);
 
@@ -238,8 +318,13 @@ export default function Board({
       </div>
 
       <div
-        className={celebrar ? "board celebra" : "board"}
+        key={caseKey}
+        className={celebrar ? "board celebra entra" : "board entra"}
         id="tablero"
+        onPointerLeave={() => {
+          setApuntada(-1);
+          onHabitacion(null);
+        }}
         ref={boardRef}
         role="grid"
         aria-label="Plano de la casa, 9 por 9"
@@ -266,8 +351,10 @@ export default function Board({
               const g = region[i];
               const estado =
                 marks[i] === PERSON ? "persona" : marks[i] === CROSS ? "descartada" : "vacía";
+              const rotulo = rotulos.find((x) => x.r === r && x.c === c && x.g === g);
               const clases = [
                 "cell",
+                r === ar || c === ac ? "guia" : "",
                 bad.has(i) ? "err" : "",
                 deadCells.has(i) ? "dead" : "",
                 litSet.has(i) ? "lit" : "",
@@ -287,6 +374,10 @@ export default function Board({
                   tabIndex={i === foco ? 0 : -1}
                   onFocus={() => setFoco(i)}
                   data-mark={marks[i]}
+                  onPointerEnter={() => {
+                    setApuntada(i);
+                    onHabitacion(g);
+                  }}
                   style={
                     {
                       "--h": `var(--h${g + 1})`,
@@ -297,8 +388,18 @@ export default function Board({
                   }
                   aria-label={`${coord(i)}, ${ROOMS[g].name}, ${estado}`}
                 >
+                  {/* El nombre de la habitación, una vez por región: sin esto hay que
+                      traducir color a nombre mirando la lista del costado. */}
+                  {rotulo && (
+                    <span className="room-tag" aria-hidden="true">
+                      {ROOMS[g].name}
+                    </span>
+                  )}
                   {marks[i] === PERSON ? (
-                    <span className="pin" />
+                    /* La ficha lleva la inicial de quien ocupa esa habitación */
+                    <span className="pin" aria-hidden="true">
+                      {ROOMS[g].who.replace(/^(Dra\.|Cnel\.|Condesa)\s+/, "").charAt(0)}
+                    </span>
                   ) : marks[i] === CROSS ? (
                     <Cruz />
                   ) : null}

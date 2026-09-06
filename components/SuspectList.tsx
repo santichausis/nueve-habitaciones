@@ -8,11 +8,13 @@ interface Props {
   marks: Mark[];
   roomCells: number[][];
   guilty: number | null;
+  /** Habitación bajo el cursor en el tablero: el vínculo también va en ese sentido. */
+  apuntada: number | null;
   /** Resalta la habitación de ese sospechoso en el tablero. */
   onResaltar: (celdas: number[]) => void;
 }
 
-export default function SuspectList({ marks, roomCells, guilty, onResaltar }: Props) {
+export default function SuspectList({ marks, roomCells, guilty, apuntada, onResaltar }: Props) {
   return (
     <ul className="suspects">
       {ROOMS.map((room, g) => {
@@ -22,7 +24,9 @@ export default function SuspectList({ marks, roomCells, guilty, onResaltar }: Pr
         return (
           <li
             key={room.name}
-            className={[ubicado ? "done" : "", culpable ? "guilty" : ""].filter(Boolean).join(" ")}
+            className={[ubicado ? "done" : "", culpable ? "guilty" : "", apuntada === g ? "lit" : ""]
+              .filter(Boolean)
+              .join(" ")}
             style={{ "--h": `var(--h${g + 1})`, "--dl": `var(--dl${g + 1})` } as React.CSSProperties}
             /* El resaltado también responde al teclado, no sólo al mouse */
             tabIndex={0}

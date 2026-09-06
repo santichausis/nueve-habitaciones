@@ -1,3 +1,41 @@
+/* Tipografías auto-hospedadas (subconjunto latin, ~93 KB).
+   Antes venían de Google: eso agregaba un pedido a un tercero y un salto del
+   texto al cargar. Con font-display:swap y los archivos junto al sitio, el
+   cambio es inmediato y no se ve el reflow.
+   Bodoni Moda, Libre Franklin e IBM Plex Mono son SIL Open Font License 1.1. */
+@font-face{
+  font-family:"Bodoni Moda";
+  font-style:normal;
+  font-weight:600 700;
+  font-display:swap;
+  src:url("./fonts/bodoni-moda-600.woff2") format("woff2");
+  unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face{
+  font-family:"Libre Franklin";
+  font-style:normal;
+  font-weight:400 600;
+  font-display:swap;
+  src:url("./fonts/libre-franklin-400.woff2") format("woff2");
+  unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face{
+  font-family:"IBM Plex Mono";
+  font-style:normal;
+  font-weight:400;
+  font-display:swap;
+  src:url("./fonts/ibm-plex-mono-400.woff2") format("woff2");
+  unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face{
+  font-family:"IBM Plex Mono";
+  font-style:normal;
+  font-weight:500;
+  font-display:swap;
+  src:url("./fonts/ibm-plex-mono-500.woff2") format("woff2");
+  unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 /* Nueve Habitaciones — hoja de estilos única.
    Los colores viven en custom properties para que los tres estados de tema
    (claro, oscuro, y el "sistema" sin marcar) se resuelvan como un conjunto. */
@@ -75,11 +113,19 @@
 body{
   background:var(--ground);
   color:var(--ink);
+  transition:background-color .35s ease,color .35s ease;
   font-family:"Libre Franklin",system-ui,-apple-system,"Segoe UI",sans-serif;
   font-size:15px; line-height:1.55;
   -webkit-font-smoothing:antialiased;
 }
-.wrap{max-width:1400px;margin:0 auto;padding:var(--sp-5) var(--sp-5) var(--sp-8);}
+/* Grano de papel: apenas perceptible, sólo para que el fondo no sea plano.
+   Va en el fondo y nunca sobre el tablero, que es lo único que no se negocia. */
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;
+  background-image:radial-gradient(var(--rule-soft) .5px,transparent .5px);
+  background-size:3px 3px;
+}
+.wrap{max-width:1760px;margin:0 auto;padding:var(--sp-5) var(--sp-5) var(--sp-8);position:relative;z-index:1}
 
 /* ---------- header ---------- */
 .masthead{
@@ -118,15 +164,23 @@ button.action:disabled{opacity:.4;cursor:not-allowed}
 
 /* ---------- layout ---------- */
 .stage{
-  display:grid;grid-template-columns:minmax(0,1fr) 340px;
+  display:grid;grid-template-columns:minmax(0,1fr) 360px;
   gap:var(--sp-6);margin-top:var(--sp-5);align-items:start;
+}
+/* El récord va debajo del tablero, no al final del panel: así se llena el hueco
+   de casi 200px que quedaba en esa columna y las dos se cierran parejas. */
+@media (min-width:901px){
+  .stage{grid-template-areas:"tablero panel" "record panel";grid-template-rows:auto 1fr}
+  .tablero-col{grid-area:tablero}
+  .panel{grid-area:panel}
+  .block.record{grid-area:record;margin-top:var(--sp-6);align-self:start}
 }
 /* El tablero es el objeto principal: que use el ancho disponible en vez de
    quedar limitado por un contenedor pensado para texto. */
 /* El tablero es cuadrado: si sólo se limitara por ancho, en pantallas bajas
    quedarían filas debajo del pliegue. Manda el menor de los dos. */
 .tablero-col{
-  max-width:min(clamp(320px,64vw,880px), calc(100dvh - 200px));
+  max-width:min(clamp(320px,60vw,1040px), calc(100dvh - 200px));
   justify-self:center;width:100%;
 }
 @media (max-width:900px){
@@ -164,6 +218,23 @@ button.action:disabled{opacity:.4;cursor:not-allowed}
 }
 @media (prefers-reduced-motion:reduce){.cell{transition:none}}
 .cell[data-mark="0"]{cursor:cell}
+/* El nombre de la habitación, una vez por región */
+.room-tag{
+  position:absolute;top:3px;left:4px;right:3px;z-index:1;pointer-events:none;
+  font:500 9.5px/1 "IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink);opacity:.5;text-align:left;
+  white-space:nowrap;overflow:hidden;text-overflow:clip;
+}
+/* En celdas chicas el nombre no entra y se cortaría ("BIBL", "COCI"): en ese
+   caso no se muestra. La lista de sospechosos ya lleva los nombres. */
+@container (max-width:62px){.room-tag{display:none}}
+@container (min-width:86px){.room-tag{font-size:10.5px}}
+
+/* 5. Guías de fila y columna de la casilla apuntada */
+.cell.guia:not(:hover)::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:var(--ink);opacity:.06;
+}
 .cell:hover{filter:brightness(1.14) saturate(1.2)}
 .cell:focus-visible{outline:2px solid var(--accent);outline-offset:-3px;z-index:4}
 
@@ -177,8 +248,22 @@ button.action:disabled{opacity:.4;cursor:not-allowed}
   background:hsl(var(--h) var(--strong-s) var(--strong-l));
   box-shadow:inset 0 0 0 2px hsl(var(--h) var(--strong-s) calc(var(--strong-l) + 14%)), 0 1px 2px var(--shadow);
   animation:pin-in .22s cubic-bezier(.34,1.56,.64,1) backwards;
+  display:flex;align-items:center;justify-content:center;
+  font-family:"Bodoni Moda",Didot,serif;font-weight:700;
+  font-size:clamp(11px,2.4cqw,20px);line-height:1;
+  color:hsl(var(--h) 60% 12%);
 }
-.cell.err .pin{background:var(--accent);box-shadow:inset 0 0 0 2px var(--accent-soft)}
+.cell{container-type:inline-size}
+@keyframes err-pulse{
+  0%{box-shadow:inset 0 0 0 0 var(--accent)}
+  45%{box-shadow:inset 0 0 0 4px var(--accent)}
+  100%{box-shadow:inset 0 0 0 2px var(--accent)}
+}
+.cell.err .pin{
+  background:var(--accent);color:#fff;
+  box-shadow:inset 0 0 0 2px var(--accent-soft);
+  animation:err-pulse .55s ease-out;
+}
 
 /* Los tachados automáticos entran escalonados desde la ficha que los provocó:
    se ve POR QUÉ quedaron prohibidos, en vez de aparecer todos en un frame. */
@@ -213,12 +298,27 @@ button.action:disabled{opacity:.4;cursor:not-allowed}
 }
 @keyframes flash{0%,55%{opacity:1}100%{opacity:0}}
 
+/* Un caso nuevo entra escalonado: marca el corte entre partidas, que antes
+   aparecía sin ningún aviso. */
+@keyframes sala-in{from{opacity:0;transform:scale(.965)}to{opacity:1;transform:none}}
+.board.entra .cell{animation:sala-in .32s ease-out backwards}
+.board.entra .brow:nth-child(1) .cell{animation-delay:0ms}
+.board.entra .brow:nth-child(2) .cell{animation-delay:26ms}
+.board.entra .brow:nth-child(3) .cell{animation-delay:52ms}
+.board.entra .brow:nth-child(4) .cell{animation-delay:78ms}
+.board.entra .brow:nth-child(5) .cell{animation-delay:104ms}
+.board.entra .brow:nth-child(6) .cell{animation-delay:130ms}
+.board.entra .brow:nth-child(7) .cell{animation-delay:156ms}
+.board.entra .brow:nth-child(8) .cell{animation-delay:182ms}
+.board.entra .brow:nth-child(9) .cell{animation-delay:208ms}
+
 /* Al resolver, las nueve fichas se encienden en secuencia */
 @keyframes celebra{0%{transform:scale(1)}40%{transform:scale(1.24)}100%{transform:scale(1)}}
 .board.celebra .pin{animation:celebra .5s ease-out backwards;animation-delay:calc(var(--orden,0) * 110ms)}
 
 @media (prefers-reduced-motion:reduce){
-  .pin,.cross,.board.celebra .pin{animation:none}
+  .pin,.cross,.board.celebra .pin,.board.entra .cell,.cell.err .pin{animation:none}
+  body{transition:none}
   .cell.flash::after{animation:none;opacity:1}
   .colhead span,.rowhead span{transition:none}
 }
@@ -284,6 +384,8 @@ h2.fuerte{
   border-radius:2px;
 }
 .suspects li:focus-visible{outline:2px solid var(--spot);outline-offset:-2px}
+/* El vínculo va en los dos sentidos: apuntar una casilla marca a su sospechoso */
+.suspects li.lit{background:var(--surface-2);box-shadow:inset 2px 0 0 hsl(var(--h) var(--strong-s) var(--strong-l))}
 .suspects li:last-child{border-bottom:0}
 .swatch{
   width:16px;height:16px;border-radius:3px;
@@ -379,6 +481,19 @@ h2.fuerte{
 .stats div{display:flex;flex-direction:column;gap:1px}
 .stats b{font-family:"IBM Plex Mono",monospace;font-size:17px;font-weight:500}
 .stats i{font-style:normal;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint)}
+
+/* Los últimos tiempos: un "mejor" suelto no dice nada sin con qué compararlo */
+.dist{
+  display:flex;align-items:flex-end;gap:3px;height:34px;
+  margin-top:var(--sp-3);padding-top:var(--sp-1);
+  border-top:1px solid var(--rule-soft);
+}
+.dist span{flex:1;background:var(--rule);border-radius:1px;min-height:3px}
+.dist span.mejor{background:var(--good)}
+.restantes{
+  margin:var(--sp-3) 0 0;font-size:11.5px;line-height:1.45;color:var(--ink-faint);
+}
+.restantes b{color:var(--ink-soft);font-weight:600}
 /* ---------- modales ---------- */
 @keyframes velo-in{from{opacity:0}to{opacity:1}}
 @keyframes hoja-in{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
@@ -403,6 +518,13 @@ h2.fuerte{
   margin:8px 0 0;color:var(--ink);letter-spacing:-.01em;text-transform:none;letter-spacing:0}
 .sheet .lede{margin:var(--sp-3) 0 0;font-size:14.5px;line-height:1.6;color:var(--ink-soft)}
 .story{margin:var(--sp-4) 0 0;font-size:15px;line-height:1.65;color:var(--ink)}
+.story p{margin:0 0 var(--sp-3)}
+.story p:last-child{margin-bottom:0}
+/* Capitular: es el momento narrativo del juego, que se note */
+.story p:first-child::first-letter{
+  float:left;font-family:"Bodoni Moda",Didot,serif;font-weight:700;
+  font-size:2.9em;line-height:.82;margin:2px var(--sp-2) 0 0;color:var(--accent);
+}
 .story b{font-weight:600}
 .story .coord{font-size:14px}
 .picker{display:flex;flex-direction:column;gap:var(--sp-2);margin-top:var(--sp-4)}
@@ -424,7 +546,18 @@ h2.fuerte{
   padding:var(--sp-2) var(--sp-3);border:1px solid var(--rule);background:transparent;color:var(--ink-soft);border-radius:2px;cursor:pointer;
 }
 .again button:hover{border-color:var(--ink);color:var(--ink)}
-footer{margin-top:var(--sp-7);padding-top:var(--sp-4);border-top:1px solid var(--rule);font-size:12px;color:var(--ink-faint)}
+footer{
+  margin-top:var(--sp-7);padding-top:var(--sp-5);border-top:1px solid var(--rule);
+  display:flex;flex-direction:column;align-items:center;gap:var(--sp-2);
+  text-align:center;font-size:12px;color:var(--ink-faint);
+}
+footer p{margin:0;max-width:52ch}
+footer .sello{
+  font-family:"Bodoni Moda",Didot,serif;font-weight:700;font-size:15px;
+  letter-spacing:.02em;color:var(--ink-soft);
+}
+footer .creditos a{color:var(--ink-faint);text-decoration:underline;text-underline-offset:2px}
+footer .creditos a:hover{color:var(--ink)}
 
 /* ---------- móvil ---------- */
 /* Los controles quedaban debajo del tablero: pedir una pista obligaba a
@@ -441,12 +574,37 @@ footer{margin-top:var(--sp-7);padding-top:var(--sp-4);border-top:1px solid var(-
   }
   .block.operativo .avance{margin-top:var(--sp-2)}
   .block.operativo .tools{margin-top:var(--sp-2)}
+  /* Plegable: la barra ocupa ~150px de 812 y no siempre hace falta */
+  .tirador{
+    display:block;width:44px;height:16px;margin:0 auto var(--sp-1);padding:0;
+    border:0;background:transparent;cursor:pointer;position:relative;
+  }
+  .tirador::before{
+    content:"";position:absolute;inset:6px 0;border-radius:2px;background:var(--rule);
+  }
+  .block.operativo.plegada{padding-bottom:calc(var(--sp-2) + env(safe-area-inset-bottom,0px))}
+  .block.operativo.plegada .avance,
+  .block.operativo.plegada .tools,
+  .block.operativo.plegada .msg{display:none}
+  .block.operativo.plegada .status{margin:0}
+  .block.operativo.plegada .modos{display:none}
+  /* El modo de toque sólo aparece donde no hay arrastre */
+  .modos{display:flex;gap:var(--sp-1);margin-top:var(--sp-2)}
+  .modos button{
+    flex:1;font:500 12px/1 "Libre Franklin",sans-serif;padding:var(--sp-2) var(--sp-1);
+    border:1px solid var(--rule);border-radius:2px;background:transparent;color:var(--ink-soft);
+  }
+  .modos button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
   .panel{gap:var(--sp-5)}
 }
 
 /* ---------- accesibilidad ---------- */
 
 /* Salto al contenido para quien navega con teclado */
+/* Tirador y modos son sólo de táctil; en escritorio hay arrastre y no hacen falta */
+@media (min-width:901px){
+  .tirador,.modos{display:none}
+}
 .skip{
   position:absolute;left:-9999px;top:0;z-index:100;
   padding:var(--sp-3) var(--sp-4);background:var(--ink);color:var(--surface);

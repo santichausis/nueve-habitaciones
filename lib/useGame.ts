@@ -17,7 +17,7 @@ import {
   type Cambio,
   type Mark,
 } from "./game";
-import { bagKey, load, loadStats, save, statFor, type Stat } from "./storage";
+import { MAX_TIEMPOS, bagKey, load, loadStats, save, statFor, statVacia, type Stat } from "./storage";
 
 const vacio = (): Mark[] => new Array(N * N).fill(EMPTY) as Mark[];
 
@@ -25,6 +25,8 @@ export interface Game {
   caso: Caso | null;
   cascada: { origen: number; celdas: number[] } | null;
   hintUnit: number[];
+  caseKey: number;
+  restantes: number;
   /** true en cuanto se hace la primera marca: sirve para plegar la ambientación. */
   jugo: boolean;
   marks: Mark[];
@@ -73,7 +75,11 @@ export function useGame(): Game {
   /** Fila/columna/habitación de la que habla la pista, para resaltarla. */
   const [hintUnit, setHintUnit] = useState<number[]>([]);
   const [jugo, setJugo] = useState(false);
-  const [stat, setStat] = useState<Stat>({ played: 0, won: 0, best: null });
+  /** Cambia con cada caso: dispara la animación de entrada del tablero. */
+  const [caseKey, setCaseKey] = useState(0);
+  /** Cuántos casos quedan sin jugar en la bolsa de esta dificultad. */
+  const [restantes, setRestantes] = useState(0);
+  const [stat, setStat] = useState<Stat>(statVacia);
 
   /* `solved` y `revealed` también quedan viejos dentro de un closure: sin esto,
      los clics que llegan en el mismo tick que la jugada ganadora siguen
@@ -127,6 +133,8 @@ export function useGame(): Game {
     if (!r) return;
     save(bagKey(nivel), r.bag);
     save("nh-diff", nivel);
+    setRestantes(r.bag.length);
+    setCaseKey((k) => k + 1);
 
     const st = loadStats();
     const s = statFor(st, nivel);
@@ -174,6 +182,9 @@ export function useGame(): Game {
         const s = statFor(st, caso.level);
         s.won++;
         if (s.best === null || segundos < s.best) s.best = segundos;
+        s.times = [...s.times, segundos].slice(-MAX_TIEMPOS);
+        s.streak++;
+        s.bestStreak = Math.max(s.bestStreak, s.streak);
         st[caso.level] = s;
         save("nh-stats", st);
         setStat(s);
@@ -241,11 +252,13 @@ export function useGame(): Game {
     const next = marksRef.current.slice();
     for (let k = lote.length - 1; k >= 0; k--) next[lote[k].i] = lote[k].prev;
     setPuedeDeshacer(historial.current.length > 0);
+    // marcar lo que volvió atrás: si no, un arrastre de 20 casillas se deshace en silencio
+    destellar(lote.map((c) => c.i));
     setHint("");
     setHintUnit([]);
     setCascada(null);
     escribirMarks(next);
-  }, [escribirMarks]);
+  }, [escribirMarks, destellar]);
 
   /* ---------- pistas ---------- */
   const pedirPista = useCallback(() => {
@@ -319,6 +332,12 @@ export function useGame(): Game {
     terminadoRef.current = true;
     const next = vacio();
     for (const i of caso.stars) next[i] = PERSON;
+    const st = loadStats();
+    const s = statFor(st, caso.level);
+    s.streak = 0;
+    st[caso.level] = s;
+    save("nh-stats", st);
+    setStat(s);
     escribirMarks(next);
     setRevealed(true);
     setHint("");
@@ -330,6 +349,8 @@ export function useGame(): Game {
     caso,
     cascada,
     hintUnit,
+    caseKey,
+    restantes,
     jugo,
     marks,
     level,

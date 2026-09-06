@@ -35,16 +35,25 @@ const resultado = await build({
 });
 
 const js = resultado.outputFiles[0].text;
-const css = readFileSync(join(raiz, "app/globals.css"), "utf8");
+
+/* Las tipografías se incrustan en el CSS: el artifact tiene que funcionar como
+   un archivo suelto, sin pedir nada a la red. */
+let css = readFileSync(join(raiz, "app/globals.css"), "utf8");
+let fuentes = 0;
+css = css.replace(/url\("\.\/fonts\/([^"]+)"\)/g, (_m, archivo) => {
+  const datos = readFileSync(join(raiz, "app/fonts", archivo));
+  fuentes++;
+  return `url("data:font/woff2;base64,${datos.toString("base64")}")`;
+});
+if (!fuentes) {
+  console.error("No se incrustó ninguna tipografía: ¿cambió la ruta en globals.css?");
+  process.exit(1);
+}
 
 /* Dentro de un <script> inline, "</script" cierra la etiqueta aunque esté en
    una cadena. Escaparlo no cambia lo que el código hace. */
 const seguroJs = js.replace(/<\/(script)/gi, "<\\/$1");
 const seguroCss = css.replace(/<\/(style)/gi, "<\\/$1");
-
-const FUENTES =
-  "https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,600;0,6..96,700;1,6..96,600" +
-  "&family=Libre+Franklin:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap";
 
 const html = `<!doctype html>
 <html lang="es">
@@ -54,9 +63,6 @@ const html = `<!doctype html>
 <meta name="color-scheme" content="light dark">
 <title>Nueve Habitaciones</title>
 <meta name="description" content="Puzzle de deducción lógica: ubicá a nueve sospechosos, uno por fila, columna y habitación, sin que se toquen, y descubrí al asesino.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="${FUENTES}">
 <style>*{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}
 ${seguroCss}</style>
 </head>
@@ -73,4 +79,4 @@ const destino = join(dist, "nueve-habitaciones.html");
 writeFileSync(destino, html);
 
 console.log(destino);
-console.log(`  ${(Buffer.byteLength(html) / 1024).toFixed(0)} KB en un solo archivo`);
+console.log(`  ${(Buffer.byteLength(html) / 1024).toFixed(0)} KB en un solo archivo, ${fuentes} tipografías incrustadas`);

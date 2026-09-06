@@ -129,6 +129,11 @@ sí mismo.
 - En móvil los controles son una barra fija: pedir una pista no obliga a perder de vista
   el tablero.
 - Toda animación respeta `prefers-reduced-motion`.
+- **El tablero es un plano, no una grilla**: cada habitación lleva su nombre y los
+  muros tienen una puerta por cada par de cuartos vecinos.
+- **Tipografías auto-hospedadas** (subconjunto latin, ~93 KB): sin pedidos a
+  terceros y sin el salto de texto al cargar. En el artifact van incrustadas, así
+  que ese archivo no toca la red en ningún momento.
 
 ## Accesibilidad
 

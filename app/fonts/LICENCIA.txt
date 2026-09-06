@@ -1,0 +1,8 @@
+Bodoni Moda, Libre Franklin e IBM Plex Mono se distribuyen bajo la
+SIL Open Font License 1.1, que permite auto-hospedarlas y redistribuirlas.
+
+  Bodoni Moda     https://github.com/indestructible-type/Bodoni
+  Libre Franklin  https://github.com/impallari/Libre-Franklin
+  IBM Plex Mono   https://github.com/IBM/plex
+
+Los archivos son el subconjunto "latin" tal como los sirve Google Fonts.
