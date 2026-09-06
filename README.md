@@ -129,6 +129,11 @@ sí mismo.
 - En móvil los controles son una barra fija: pedir una pista no obliga a perder de vista
   el tablero.
 - Toda animación respeta `prefers-reduced-motion`.
+- **La partida transcurre en hora de ficción**: el reloj arranca cuando arrancó
+  la noche de ese caso y avanza un minuto cada diez segundos. El tiempo real se
+  sigue midiendo para el récord.
+- El cuerpo aparece en el plano **recién al cerrar el caso**: durante la partida
+  no aporta nada y al final aterriza el desenlace donde estuviste pensando.
 - **El tablero es un plano, no una grilla**: los muros tienen una puerta por cada par
   de cuartos vecinos y cada persona ubicada es un sello con el emblema de su
   habitación — una copa en la Bodega, una llave en el Vestíbulo.

@@ -21,6 +21,10 @@ interface Props {
   celebrar: boolean;
   /** Cambia con cada caso: reinicia la animación de entrada. */
   caseKey: number;
+  /** Casilla del cuerpo. Sólo se muestra con el caso cerrado. */
+  cuerpo: number;
+  /** Con el caso cerrado aparece el cuerpo en el plano. */
+  revelado: boolean;
   bloqueado: boolean;
   /** En táctil no hay arrastre (bloquearía el scroll): el modo decide qué hace un toque. */
   modo: "ciclo" | "tachar" | "ubicar";
@@ -128,6 +132,8 @@ export default function Board({
   cascada,
   celebrar,
   caseKey,
+  cuerpo,
+  revelado,
   bloqueado,
   modo,
   onCiclar,
@@ -340,6 +346,7 @@ export default function Board({
                   tabIndex={i === foco ? 0 : -1}
                   onFocus={() => setFoco(i)}
                   data-mark={marks[i]}
+                  data-cuerpo={revelado && i === cuerpo ? "" : undefined}
                   onPointerEnter={() => {
                     setApuntada(i);
                     onHabitacion(g);
@@ -349,11 +356,22 @@ export default function Board({
                       "--h": `var(--h${g + 1})`,
                       "--dl": `var(--dl${g + 1})`,
                       "--delay": retraso(i),
+                      // La entrada barre en diagonal, como una hoja que se despliega
+                      "--entra": `${(r + c) * 18}ms`,
                       "--orden": marks[i] === PERSON ? `${idx(r, c) % N}` : undefined,
                     } as React.CSSProperties
                   }
                   aria-label={`${coord(i)}, ${ROOMS[g].name}, ${estado}`}
                 >
+                  {/* El cuerpo aparece recién al cerrar el caso: durante la
+                      partida no aporta nada, y al final aterriza el desenlace
+                      en el lugar del plano donde estuviste pensando. */}
+                  {revelado && i === cuerpo && (
+                    <svg className="cuerpo" viewBox="0 0 24 24" aria-hidden="true">
+                      <circle cx="12" cy="12" r="8.5" strokeDasharray="2.4 3" />
+                      <path d="M8.5 8.5 15.5 15.5M15.5 8.5 8.5 15.5" />
+                    </svg>
+                  )}
                   {marks[i] === PERSON ? (
                     /* Sello de la habitación: el emblema dice quién es sin leer nada */
                     <span className="pin" aria-hidden="true">

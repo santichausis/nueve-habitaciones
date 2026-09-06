@@ -74,6 +74,7 @@
   /* Luz de la tinta del emblema: el sello es oscuro en claro y claro en oscuro */
   --sello-ink:96%;
   --sello-relieve:-38%;
+  --vineta:rgba(40,46,38,.13);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -92,6 +93,7 @@
     --spot:#8FCBE8;
     --sello-ink:13%;
     --sello-relieve:34%;
+    --vineta:rgba(0,0,0,.34);
     --room-s:42%; --room-l:29%;
     --strong-s:60%; --strong-l:66%;
   }
@@ -112,6 +114,7 @@
   --spot:#8FCBE8;
   --sello-ink:13%;
   --sello-relieve:34%;
+  --vineta:rgba(0,0,0,.34);
   --room-s:42%; --room-l:29%;
   --strong-s:60%; --strong-l:66%;
 }
@@ -131,6 +134,12 @@ body::before{
   content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;
   background-image:radial-gradient(var(--rule-soft) .5px,transparent .5px);
   background-size:3px 3px;
+}
+/* Viñeta: cierra la página por los bordes sin tocar el centro, que es donde
+   está el tablero y lo único que no se negocia. */
+body::after{
+  content:"";position:fixed;inset:0;z-index:2;pointer-events:none;
+  background:radial-gradient(ellipse 78% 78% at 50% 45%, transparent 60%, var(--vineta) 100%);
 }
 .wrap{max-width:1760px;margin:0 auto;padding:var(--sp-5) var(--sp-5) var(--sp-8);position:relative;z-index:1}
 
@@ -351,19 +360,32 @@ button.action:disabled{opacity:.4;cursor:not-allowed}
 
 /* Un caso nuevo entra escalonado: marca el corte entre partidas, que antes
    aparecía sin ningún aviso. */
-@keyframes sala-in{from{opacity:0;transform:scale(.965)}to{opacity:1;transform:none}}
-.board.entra .cell{animation:sala-in .32s ease-out backwards}
-.board.entra .brow:nth-child(1) .cell{animation-delay:0ms}
-.board.entra .brow:nth-child(2) .cell{animation-delay:26ms}
-.board.entra .brow:nth-child(3) .cell{animation-delay:52ms}
-.board.entra .brow:nth-child(4) .cell{animation-delay:78ms}
-.board.entra .brow:nth-child(5) .cell{animation-delay:104ms}
-.board.entra .brow:nth-child(6) .cell{animation-delay:130ms}
-.board.entra .brow:nth-child(7) .cell{animation-delay:156ms}
-.board.entra .brow:nth-child(8) .cell{animation-delay:182ms}
-.board.entra .brow:nth-child(9) .cell{animation-delay:208ms}
+/* El caso nuevo se despliega en diagonal, como una hoja que se apoya, y el
+   plano entero entra con él: es el corte entre un expediente y el siguiente. */
+@keyframes sala-in{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+@keyframes expediente-in{
+  from{opacity:0;transform:translateY(10px) scale(.985)}
+  to{opacity:1;transform:none}
+}
+.board.entra{animation:expediente-in .34s cubic-bezier(.2,.8,.3,1)}
+.board.entra .cell{animation:sala-in .3s ease-out backwards;animation-delay:var(--entra,0ms)}
 
 /* Al resolver, las nueve fichas se encienden en secuencia */
+/* El cuerpo entra después de que los sellos terminan de girar: primero se
+   revela quién estaba dónde, y recién después dónde había quedado él. */
+@keyframes cuerpo-in{
+  from{opacity:0;transform:scale(1.7)}
+  to{opacity:.85;transform:none}
+}
+.cuerpo{
+  position:absolute;inset:18%;z-index:3;pointer-events:none;
+  color:var(--accent);stroke:currentColor;fill:none;
+  stroke-width:1.5;stroke-linecap:round;
+  opacity:.85;
+  animation:cuerpo-in .45s ease-out .95s backwards;
+}
+.cell[data-cuerpo]{box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--accent) 55%,transparent)}
+
 /* Al resolver, los nueve sellos giran en cadena: 105ms entre uno y otro son
    945ms, que entran justos en la espera que ya existe antes del modal. */
 @keyframes voltear{
@@ -374,7 +396,8 @@ button.action:disabled{opacity:.4;cursor:not-allowed}
 .board.celebra .pin{animation:voltear .52s ease-in-out backwards;animation-delay:calc(var(--orden,0) * 105ms)}
 
 @media (prefers-reduced-motion:reduce){
-  .pin,.cross,.board.celebra .pin,.board.entra .cell,.cell.err .pin{animation:none}
+  .pin,.cross,.board.celebra .pin,.board.entra,.board.entra .cell,
+  .cell.err .pin,.cuerpo{animation:none}
   .pin{transition:none}
   body{transition:none}
   .cell.flash::after{animation:none;opacity:1}
@@ -425,6 +448,12 @@ h2{
 h2.fuerte{
   font:600 12px/1 "Libre Franklin",sans-serif;letter-spacing:.1em;
   color:var(--ink-soft);
+}
+/* El expediente se lee como un informe escrito a máquina */
+.block.mecanografiado p{
+  margin:var(--sp-3) 0 0;
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:12.5px;line-height:1.75;color:var(--ink-soft);
 }
 .block.caso p{margin:var(--sp-3) 0 0;font-size:14.5px;color:var(--ink-soft);line-height:1.6}
 .block.caso b{color:var(--ink);font-weight:600}
@@ -746,6 +775,21 @@ footer .creditos a:hover{color:var(--ink)}
 }
 .sheet-close:hover{border-color:var(--rule);color:var(--ink)}
 .sheet{position:relative}
+/* Estampa del expediente */
+.estampa{
+  position:absolute;top:var(--sp-5);right:var(--sp-7);pointer-events:none;
+  font:700 15px/1 "Bodoni Moda",Didot,serif;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--accent);border:2px solid var(--accent);border-radius:2px;
+  padding:var(--sp-2) var(--sp-3);opacity:.3;transform:rotate(-11deg);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent);
+}
+.estampa.archivado{color:var(--ink-faint);border-color:var(--ink-faint);box-shadow:none;opacity:.4}
+
+/* 4. Qué fue de cada uno después */
+.epilogo{
+  font-size:14px;color:var(--ink-soft);font-style:italic;
+}
+
 .sheet .esc{
   margin-top:14px;font:400 11.5px/1.4 "IBM Plex Mono",monospace;color:var(--ink-faint);
 }

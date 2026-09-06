@@ -20,34 +20,53 @@ export const INSPECTORA = "Inspectora Iris Bertoni";
 const OCASIONES = [
   {
     nombre: "la lectura del testamento",
+    hora: 23 * 60,
     apertura:
       "El testamento se leía a las once. A las once y cuarto ya no había a quién leérselo.",
   },
   {
     nombre: "una cena de nueve cubiertos",
+    hora: 22 * 60 + 40,
     apertura:
       "La mesa estaba puesta para diez. Nadie supo explicar por qué se sentaron nueve.",
   },
   {
     nombre: "la tormenta que cortó la luz",
+    hora: 22 * 60 + 45,
     apertura:
       "La luz se fue a las once menos cuarto y volvió veinte minutos después. En esos veinte minutos pasó todo.",
   },
   {
     nombre: "el aniversario de la casa",
+    hora: 23 * 60 + 10,
     apertura:
       "Se brindaba por los cuarenta años de la casa. El brindis quedó a la mitad.",
   },
   {
     nombre: "la última noche antes de la venta",
+    hora: 23 * 60 + 20,
     apertura:
       "La casa se vendía el lunes. Alguien decidió que el dueño no llegara al lunes.",
   },
   {
     nombre: "una partida que nadie terminó",
+    hora: 23 * 60 + 5,
     apertura:
       "Habían empezado a jugar después de la cena. Las cartas siguen sobre la mesa, boca abajo.",
   },
+];
+
+/** Qué fue de cada uno después. Cierra el caso en vez de terminarlo. */
+const EPILOGOS = [
+  "Los papeles siguen sin catalogar. Nadie más sabe leerlos.",
+  "El invernadero se cerró con llave. Adentro sigue creciendo lo que crecía.",
+  "Firmó la declaración con el apellido completo, las dos partes, por última vez.",
+  "Pidió terminar el servicio antes de salir. Se lo negaron.",
+  "Entregó la condecoración sin que nadie se la pidiera.",
+  "Se llevó las dos versiones del testamento. Sólo devolvió una.",
+  "Bajó a la bodega a buscar su abrigo. Volvió con una botella y la dejó sobre la mesa.",
+  "El cuadro quedó a medio restaurar. Así lo colgaron.",
+  "Cerró la puerta al salir, por costumbre.",
 ];
 
 /** Tres móviles por sospechoso: el mismo culpable no repite excusa. */
@@ -147,7 +166,19 @@ export interface Historia {
   salaDelCulpable: string;
   casillaDelCulpable: string;
   movil: string;
+  epilogo: string;
   cierre: string;
+}
+
+/**
+ * El reloj de la partida en hora de ficción: arranca cuando arrancó la noche y
+ * avanza un minuto cada diez segundos reales. El tiempo real se sigue guardando
+ * para el récord; esto es para el clima.
+ */
+export function horaDeLaNoche(P: Caso, segundos: number): string {
+  const oc = OCASIONES[(P.body * 31 + P.killer * 7) % OCASIONES.length];
+  const minutos = (oc.hora + Math.floor(segundos / 10)) % (24 * 60);
+  return `${String(Math.floor(minutos / 60)).padStart(2, "0")}:${String(minutos % 60).padStart(2, "0")}`;
 }
 
 /** Distancia de rey: cuántos pasos hay entre dos casillas contando diagonales. */
@@ -236,6 +267,7 @@ export function buildStory(P: Caso): Historia {
     salaDelCulpable: roomLabel(g),
     casillaDelCulpable: coord(celdaCulpable),
     movil: MOVILES[g][iMovil],
+    epilogo: EPILOGOS[g],
     cierre: CIERRES[semilla % CIERRES.length],
   };
 }

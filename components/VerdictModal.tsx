@@ -34,6 +34,12 @@ export default function VerdictModal({
         ✕
       </button>
 
+      {/* El gesto de expediente: el kicker ya dice lo mismo, así que el sello
+          es decorativo y no lo lee nadie dos veces. */}
+      <span className={gano ? "estampa" : "estampa archivado"} aria-hidden="true">
+        {gano ? "Cerrado" : "Archivado"}
+      </span>
+
       <span className="kicker">
         {gano
           ? `Caso cerrado · ${LEVEL_LABEL[level]} · ${fmtTime(elapsed)}`
@@ -77,6 +83,8 @@ export default function VerdictModal({
         </p>
 
         <p>{h.movil}</p>
+
+        <p className="epilogo">{h.epilogo}</p>
 
         <p className="firma">
           «{h.cierre}»<br />

@@ -8,7 +8,7 @@ import VerdictModal from "@/components/VerdictModal";
 import { LEVEL_LABEL, NIVELES, type Level } from "@/lib/engine";
 import { PERSON, fmtTime } from "@/lib/game";
 import { ROOMS, VICTIMA } from "@/lib/rooms";
-import { ocasionDe } from "@/lib/story";
+import { horaDeLaNoche, ocasionDe } from "@/lib/story";
 import { esPrimeraVez, loadLevel, marcarVisto } from "@/lib/storage";
 import { useGame } from "@/lib/useGame";
 
@@ -127,6 +127,8 @@ export default function Page() {
                 cascada={g.cascada}
                 celebrar={g.solved}
                 caseKey={g.caseKey}
+                cuerpo={g.caso.body}
+                revelado={g.solved || g.revealed}
                 bloqueado={g.solved || g.revealed}
                 modo={modo}
                 onCiclar={g.ciclar}
@@ -159,8 +161,14 @@ export default function Page() {
                   {g.placed}/9
                 </span>
                 <span className="chip">{LEVEL_LABEL[g.level]}</span>
-                <span className="reloj" aria-label={`Tiempo: ${fmtTime(g.elapsed)}`}>
-                  {fmtTime(g.elapsed)}
+                {/* Hora de la noche, no cronómetro: el tiempo real sigue
+                    contándose para el récord y aparece al cerrar el caso. */}
+                <span
+                  className="reloj"
+                  title={`Llevás ${fmtTime(g.elapsed)} en este caso`}
+                  aria-label={`Hora en la casa: ${g.caso ? horaDeLaNoche(g.caso, g.elapsed) : "23:00"}. Llevás ${fmtTime(g.elapsed)}.`}
+                >
+                  {g.caso ? horaDeLaNoche(g.caso, g.elapsed) : "23:00"}
                 </span>
               </div>
 
@@ -253,7 +261,7 @@ export default function Page() {
 
             {/* 3. Ambientación: se lee una vez y se pliega sola */}
             <details
-              className="block caso"
+              className="block caso mecanografiado"
               open={caseOpen}
               onToggle={(e) => setCasoAbierto(e.currentTarget.open)}
             >
