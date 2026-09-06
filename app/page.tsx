@@ -8,7 +8,8 @@ import VerdictModal from "@/components/VerdictModal";
 import { LEVEL_LABEL, NIVELES, type Level } from "@/lib/engine";
 import { PERSON, fmtTime } from "@/lib/game";
 import { ROOMS, VICTIMA } from "@/lib/rooms";
-import { loadLevel } from "@/lib/storage";
+import { ocasionDe } from "@/lib/story";
+import { esPrimeraVez, loadLevel, marcarVisto } from "@/lib/storage";
 import { useGame } from "@/lib/useGame";
 
 /** Al resolver, las fichas se encienden en secuencia antes de contar la historia. */
@@ -35,6 +36,8 @@ function Distribucion({ tiempos, mejor }: { tiempos: number[]; mejor: number | n
 export default function Page() {
   const g = useGame();
   const [inicioAbierto, setInicioAbierto] = useState(true);
+  // Se resuelve en el cliente: en el prerender no hay localStorage
+  const [primeraVez, setPrimeraVez] = useState(false);
   const [verdictoDescartado, setVerdictoDescartado] = useState(false);
   const [verdictoListo, setVerdictoListo] = useState(false);
   const [lit, setLit] = useState<number[]>([]);
@@ -49,6 +52,8 @@ export default function Page() {
   /* El nivel guardado sale de localStorage, que no existe durante el prerender:
      por eso el primer caso se carga al montar y no al construir el estado. */
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPrimeraVez(esPrimeraVez());
     g.nuevoCaso(loadLevel());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -66,6 +71,8 @@ export default function Page() {
     (verdictoListo || g.revealed) && !verdictoDescartado && !inicioAbierto;
 
   const empezar = (level: Level) => {
+    marcarVisto();
+    setPrimeraVez(false);
     g.nuevoCaso(level);
     setInicioAbierto(false);
     setVerdictoDescartado(false);
@@ -254,10 +261,10 @@ export default function Page() {
                 <h2>El caso</h2>
               </summary>
               <p>
-                Anoche mataron a <b>{VICTIMA}</b> en esta casa. Las nueve personas que estaban
-                adentro se repartieron una por habitación, cuidando de no quedar pegadas entre sí.
-                Sólo una falló en eso, y esa es la asesina: ubicá a las nueve y el caso se cierra
-                solo.
+                Anoche, durante <b>{g.caso ? ocasionDe(g.caso) : "la cena"}</b>, mataron a{" "}
+                <b>{VICTIMA}</b> en esta casa. Las nueve personas que estaban adentro se repartieron
+                una por habitación, cuidando de no quedar pegadas entre sí. Sólo una falló en eso, y
+                ésa es la asesina.
               </p>
             </details>
 
@@ -333,7 +340,12 @@ export default function Page() {
         </footer>
       </div>
 
-      <StartModal open={inicioAbierto} onElegir={empezar} onClose={() => setInicioAbierto(false)} />
+      <StartModal
+        open={inicioAbierto}
+        primeraVez={primeraVez}
+        onElegir={empezar}
+        onClose={() => setInicioAbierto(false)}
+      />
 
       {g.caso && (
         <VerdictModal

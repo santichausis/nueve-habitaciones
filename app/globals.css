@@ -73,6 +73,7 @@
   --spot:#1F5C7A;
   /* Luz de la tinta del emblema: el sello es oscuro en claro y claro en oscuro */
   --sello-ink:96%;
+  --sello-relieve:-38%;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -90,6 +91,7 @@
     --shadow:rgba(0,0,0,.45);
     --spot:#8FCBE8;
     --sello-ink:13%;
+    --sello-relieve:34%;
     --room-s:42%; --room-l:29%;
     --strong-s:60%; --strong-l:66%;
   }
@@ -109,6 +111,7 @@
   --shadow:rgba(0,0,0,.45);
   --spot:#8FCBE8;
   --sello-ink:13%;
+  --sello-relieve:34%;
   --room-s:42%; --room-l:29%;
   --strong-s:60%; --strong-l:66%;
 }
@@ -253,18 +256,26 @@ button.action:disabled{opacity:.4;cursor:not-allowed}
   --filo:hsl(var(--h) var(--strong-s) calc(var(--strong-l) + var(--dl) + 20%));
   --campo:hsl(var(--h) var(--strong-s) calc(var(--strong-l) + var(--dl) - 5%));
   background:var(--aro);
-  box-shadow:0 1px 2px var(--shadow);
+  /* Relieve: una luz arriba y una sombra abajo lo vuelven una pieza acuñada
+     en vez de un círculo de color plano. */
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.22),
+    inset 0 -1px 0 rgba(0,0,0,.20),
+    0 1px 2px var(--shadow);
   display:grid;place-items:center;
   animation:apoyar .26s cubic-bezier(.2,.9,.3,1.15) backwards;
 }
 .pin::before{
   content:"";position:absolute;inset:19%;border-radius:50%;
   background:var(--campo);
+  box-shadow:inset 0 1px 1px rgba(0,0,0,.16);
 }
 .emblema{
   position:relative;width:46%;height:46%;
   color:hsl(var(--h) 45% var(--sello-ink));
   stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;
+  /* El emblema queda grabado, no impreso */
+  filter:drop-shadow(0 1px 0 hsl(var(--h) 40% calc(var(--sello-ink) + var(--sello-relieve))));
 }
 
 /* El sello se arma por escalones: cada pieza aparece sólo cuando tiene tamaño
@@ -574,6 +585,30 @@ h2.fuerte{
 .story{margin:var(--sp-4) 0 0;font-size:15px;line-height:1.65;color:var(--ink)}
 .story p{margin:0 0 var(--sp-3)}
 .story p:last-child{margin-bottom:0}
+
+/* Los testimonios de los otros ocho: lo que dijeron, según dónde estaban */
+.testimonios{
+  list-style:none;margin:0 0 var(--sp-3);padding:0 0 0 var(--sp-4);
+  display:flex;flex-direction:column;gap:var(--sp-2);
+  border-left:2px solid var(--rule);
+}
+.testimonios li{font-size:13.5px;line-height:1.5;color:var(--ink-soft)}
+.testimonios b{color:var(--ink);font-weight:600}
+
+/* La acusación: el sello del culpable al lado del párrafo que lo nombra */
+.acusacion{display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3);align-items:start}
+.sello-grande{display:block;width:46px;height:46px;position:relative;flex:none;container-type:inline-size}
+.sello-grande .pin{width:100%;height:100%;animation:none}
+
+.firma{
+  margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--rule-soft);
+  font-size:14px;font-style:italic;color:var(--ink-soft);
+}
+.firma span{
+  display:inline-block;margin-top:var(--sp-1);font-style:normal;
+  font:500 11px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-faint);
+}
 /* Capitular: es el momento narrativo del juego, que se note */
 .story p:first-child::first-letter{
   float:left;font-family:"Bodoni Moda",Didot,serif;font-weight:700;
@@ -581,6 +616,30 @@ h2.fuerte{
 }
 .story b{font-weight:600}
 .story .coord{font-size:14px}
+/* Las reglas de la bienvenida */
+.reglas-num{
+  margin:var(--sp-4) 0 0;padding:0 0 0 var(--sp-5);
+  display:flex;flex-direction:column;gap:var(--sp-3);
+  font-size:14.5px;line-height:1.55;color:var(--ink-soft);
+}
+.reglas-num li::marker{color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;font-size:12px}
+.reglas-num b{color:var(--ink);font-weight:600}
+.reglas-num small{display:block;margin-top:var(--sp-2);font-size:12.5px;color:var(--ink-faint)}
+
+/* La regla del contacto, dibujada: es la que más cuesta entender */
+.diagrama{
+  display:grid;grid-template-columns:repeat(3,34px);grid-template-rows:repeat(3,34px);
+  gap:2px;margin:var(--sp-3) 0 0;
+}
+.diagrama span{
+  display:grid;place-items:center;border:1px solid var(--rule-soft);
+  background:var(--surface-2);container-type:inline-size;
+}
+.diagrama .centro{background:hsl(var(--h7) var(--room-s) calc(var(--room-l) + var(--dl7)))}
+.diagrama .pin{width:74%;height:74%;animation:none}
+.diagrama .cross{width:38%;height:38%;opacity:.4;color:var(--ink-soft);fill:none}
+.diagrama .cross line{stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+
 .picker{display:flex;flex-direction:column;gap:var(--sp-2);margin-top:var(--sp-4)}
 .picker button{
   display:grid;grid-template-columns:1fr auto;align-items:center;gap:var(--sp-3);text-align:left;

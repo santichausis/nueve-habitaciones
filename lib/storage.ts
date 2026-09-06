@@ -74,3 +74,11 @@ export function statFor(st: Stats, level: Level): Stat {
 }
 
 export const bagKey = (level: Level) => `nh-bag-${level}`;
+
+/** Las reglas se explican una sola vez; después se entra directo a elegir caso. */
+export function esPrimeraVez(): boolean {
+  return load<unknown>("nh-visto", false) !== true;
+}
+export function marcarVisto(): void {
+  save("nh-visto", true);
+}

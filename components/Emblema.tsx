@@ -12,11 +12,14 @@
  */
 
 const TRAZOS: Record<number, React.ReactNode> = {
-  // Biblioteca — Dra. Alma Reyes, archivista
+  /* Biblioteca — Dra. Alma Reyes, archivista.
+     Libro ABIERTO: cerrado era un rectángulo y se confundía con el cuadro
+     de la Galería, que también es un rectángulo a 12px. */
   0: (
     <>
-      <path d="M6 3h11v18H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
-      <path d="M9 3v18" />
+      <path d="M12 6c-2.4-1.8-5-2.2-8-1.6v12.2c3-.6 5.6-.2 8 1.6" />
+      <path d="M12 6c2.4-1.8 5-2.2 8-1.6v12.2c-3-.6-5.6-.2-8 1.6" />
+      <path d="M12 6v12.2" />
     </>
   ),
   // Invernadero — Elías Prat, botánico
@@ -26,13 +29,13 @@ const TRAZOS: Record<number, React.ReactNode> = {
       <path d="M7 20 17 7" />
     </>
   ),
-  // Salón — Condesa Vera Solís, anfitriona
+  /* Salón — Condesa Vera Solís, anfitriona.
+     Abanico: el candelabro era el menos evidente de los nueve y tenía cuatro
+     trazos sueltos que a 12px se empastaban. */
   2: (
     <>
-      <path d="M12 4v4M7 7v3M17 7v3" />
-      <path d="M6 10h12" />
-      <path d="M12 10v8" />
-      <path d="M8 20h8" />
+      <path d="M12 20a11 11 0 0 0 8-16 11 11 0 0 0-16 0 11 11 0 0 0 8 16z" />
+      <path d="M12 20V4M6.5 6.5 12 20M17.5 6.5 12 20" />
     </>
   ),
   // Cocina — Nino Baralt, cocinero
@@ -50,12 +53,15 @@ const TRAZOS: Record<number, React.ReactNode> = {
       <path d="M12 9h4a4 4 0 0 1 0 8h-1" />
     </>
   ),
-  // Comedor — Ofelia Tinto, albacea
+  /* Comedor — Ofelia Tinto, albacea.
+     Campana de servir: los cubiertos eran dos rayas verticales, la silueta más
+     débil del conjunto. Una campana se reconoce de un vistazo. */
   5: (
     <>
-      <path d="M7 3v6a2 2 0 0 0 4 0V3" />
-      <path d="M9 9v12" />
-      <path d="M17 3c1.6 2 1.6 5 0 7v11" />
+      <path d="M4 17a8 8 0 0 1 16 0z" />
+      <path d="M2.5 17h19" />
+      <path d="M12 6v3" />
+      <circle cx="12" cy="5" r="1.4" />
     </>
   ),
   // Bodega — Rulo Andrade, sumiller
